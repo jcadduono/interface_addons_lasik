@@ -1214,6 +1214,16 @@ local APL = {
 
 APL[SPEC.HAVOC].main = function(self)
 	if Player:TimeInCombat() == 0 then
+--[[
+actions.precombat=flask
+actions.precombat+=/augmentation
+actions.precombat+=/food
+# Snapshot raid buffed stats before combat begins and pre-potting is done.
+actions.precombat+=/snapshot_stats
+actions.precombat+=/potion
+actions.precombat+=/metamorphosis,if=!azerite.chaotic_transformation.enabled
+actions.precombat+=/use_item,name=azsharas_font_of_power
+]]
 		if Opt.pot and not Player:InArenaOrBattleground() then
 			if GreaterFlaskOfEndlessFathoms:Usable() and GreaterFlaskOfEndlessFathoms.buff:Remains() < 300 then
 				UseCooldown(GreaterFlaskOfTheCurrents)
@@ -1222,8 +1232,264 @@ APL[SPEC.HAVOC].main = function(self)
 				UseCooldown(PotionOfUnbridledFury)
 			end
 		end
+		if not ChaoticTransformation.known and Metamorphosis:Usable() then
+			UseCooldown(Metamorphosis)
+		end
 	end
+--[[
+actions=auto_attack
+actions+=/variable,name=blade_dance,value=talent.first_blood.enabled|spell_targets.blade_dance1>=(3-talent.trail_of_ruin.enabled)
+actions+=/variable,name=waiting_for_nemesis,value=!(!talent.nemesis.enabled|cooldown.nemesis.ready|cooldown.nemesis.remains>target.time_to_die|cooldown.nemesis.remains>60)
+actions+=/variable,name=pooling_for_meta,value=!talent.demonic.enabled&cooldown.metamorphosis.remains<6&fury.deficit>30&(!variable.waiting_for_nemesis|cooldown.nemesis.remains<10)
+actions+=/variable,name=pooling_for_blade_dance,value=variable.blade_dance&(fury<75-talent.first_blood.enabled*20)
+actions+=/variable,name=pooling_for_eye_beam,value=talent.demonic.enabled&!talent.blind_fury.enabled&cooldown.eye_beam.remains<(gcd.max*2)&fury.deficit>20
+actions+=/variable,name=waiting_for_dark_slash,value=talent.dark_slash.enabled&!variable.pooling_for_blade_dance&!variable.pooling_for_meta&cooldown.dark_slash.up
+actions+=/variable,name=waiting_for_momentum,value=talent.momentum.enabled&!buff.momentum.up
+actions+=/disrupt
+actions+=/call_action_list,name=cooldown,if=gcd.remains=0
+actions+=/pick_up_fragment,if=fury.deficit>=35&(!azerite.eyes_of_rage.enabled|cooldown.eye_beam.remains>1.4)
+actions+=/call_action_list,name=dark_slash,if=talent.dark_slash.enabled&(variable.waiting_for_dark_slash|debuff.dark_slash.up)
+actions+=/run_action_list,name=demonic,if=talent.demonic.enabled
+actions+=/run_action_list,name=normal
+]]
+	Player.blade_dance = FirstBlood.known or Player.enemies >= (3 - (TrailOfRuin.known and 1 or 0))
+	Player.waiting_for_nemesis = not (not Nemesis.known or Nemesis:Ready() or Nemesis:Cooldown() > Target.timeToDie or Nemesis:Cooldown() > 60)
+	Player.pooling_for_meta = not Demonic.known and Metamorphosis:Ready(6) and Player:FuryDeficit() > 30 and (not Player.waiting_for_nemesis or Nemesis:Ready(10))
+	Player.pooling_for_blade_dance = Player.blade_dance and Player:Fury() < (75 - (FirstBlood.known and 20 or 0))
+	Player.pooling_for_eye_beam = Demonic.known and not BlindFury.known and EyeBeam:Ready(Player.gcd * 2) and Player:FuryDeficit() > 20
+	Player.waiting_for_dark_slash = DarkSlash.known and not Player.pooling_for_blade_dance and not Player.pooling_for_meta and not DarkSlash:Ready()
+	Player.waiting_for_momentum = Momentum.known and Momentum:Down()
+	local apl
+	apl = self:cooldown()
+	if apl then return apl end
+	Player.pick_up_fragment = Player:FuryDeficit() >= 35 and (not EyesOfRage.known or EyeBeam:Cooldown() > 1.4)
+	if DarkSlash.known and (Player.waiting_for_dark_slash or DarkSlash:Up()) then
+		apl = self:dark_slash()
+		if apl then return apl end
+	end
+	if Demonic.known then
+		return self:demonic()
+	end
+	return self:normal()
+end
 
+APL[SPEC.HAVOC].cooldown = function(self)
+--[[
+actions.cooldown=metamorphosis,if=!(talent.demonic.enabled|variable.pooling_for_meta|variable.waiting_for_nemesis)|target.time_to_die<25
+actions.cooldown+=/metamorphosis,if=talent.demonic.enabled&(!azerite.chaotic_transformation.enabled|(cooldown.eye_beam.remains>20&(!variable.blade_dance|cooldown.blade_dance.remains>gcd.max)))
+actions.cooldown+=/nemesis,target_if=min:target.time_to_die,if=raid_event.adds.exists&debuff.nemesis.down&(active_enemies>desired_targets|raid_event.adds.in>60)
+actions.cooldown+=/nemesis,if=!raid_event.adds.exists
+actions.cooldown+=/potion,if=buff.metamorphosis.remains>25|target.time_to_die<60
+actions.cooldown+=/use_item,name=galecallers_boon,if=!talent.fel_barrage.enabled|cooldown.fel_barrage.ready
+actions.cooldown+=/use_item,effect_name=cyclotronic_blast,if=buff.metamorphosis.up&buff.memory_of_lucid_dreams.down&(!variable.blade_dance|!cooldown.blade_dance.ready)
+actions.cooldown+=/use_item,name=ashvanes_razor_coral,if=debuff.razor_coral_debuff.down|(debuff.conductive_ink_debuff.up|buff.metamorphosis.remains>20)&target.health.pct<31|target.time_to_die<20
+actions.cooldown+=/use_item,name=azsharas_font_of_power,if=cooldown.metamorphosis.remains<10|cooldown.metamorphosis.remains>60
+# Default fallback for usable items.
+actions.cooldown+=/use_items,if=buff.metamorphosis.up
+actions.cooldown+=/call_action_list,name=essences
+]]
+	if Metamorphosis:Usable() then
+		if (
+			(not (Demonic.known or Player.pooling_for_meta or Player.waiting_for_nemesis) or Target.timeToDie < 25) or
+			(Demonic.known and (not ChaoticTransformation.known or (EyeBeam:Cooldown() > 20 and (not Player.blade_dance or BladeDance:Cooldown() > Player.gcd))))
+		) then
+			UseCooldown(Metamorphosis)
+		end
+	end
+	if Nemesis:Usable() then
+		UseCooldown(Nemesis)
+	end
+	if Opt.boss and Target.boss and PotionOfUnbridledFury:Usable() and (Metamorphosis:Remains() > 25 or Target.timeToDie < 60) then
+		UseCooldown(PotionOfUnbridledFury)
+	end
+	if Opt.trinket and Metamorphosis:Up() then
+		if Trinket1:Usable() then
+			return UseCooldown(Trinket1)
+		elseif Trinket2:Usable() then
+			return UseCooldown(Trinket2)
+		end
+	end
+	self:essences()
+end
+
+
+APL[SPEC.HAVOC].dark_slash = function(self)
+--[[
+actions.dark_slash=dark_slash,if=fury>=80&(!variable.blade_dance|!cooldown.blade_dance.ready)
+actions.dark_slash+=/annihilation,if=debuff.dark_slash.up
+actions.dark_slash+=/chaos_strike,if=debuff.dark_slash.up
+]]
+	if DarkSlash:Usable() and Player:Fury() >= 80 and (not Player.blade_dance or not BladeDance:Ready()) then
+		return DarkSlash
+	end
+	if Annihilation:Usable() and DarkSlash:Up() then
+		return Annihilation
+	end
+	if ChaosStrike:Usable() and DarkSlash:Up() then
+		return ChaosStrike
+	end
+end
+
+APL[SPEC.HAVOC].demonic = function(self)
+--[[
+actions.demonic=death_sweep,if=variable.blade_dance
+actions.demonic+=/eye_beam,if=raid_event.adds.up|raid_event.adds.in>25
+actions.demonic+=/fel_barrage,if=((!cooldown.eye_beam.up|buff.metamorphosis.up)&raid_event.adds.in>30)|active_enemies>desired_targets
+actions.demonic+=/blade_dance,if=variable.blade_dance&!cooldown.metamorphosis.ready&(cooldown.eye_beam.remains>(5-azerite.revolving_blades.rank*3)|(raid_event.adds.in>cooldown&raid_event.adds.in<25))
+actions.demonic+=/immolation_aura
+actions.demonic+=/annihilation,if=!variable.pooling_for_blade_dance
+actions.demonic+=/felblade,if=fury.deficit>=40
+actions.demonic+=/chaos_strike,if=!variable.pooling_for_blade_dance&!variable.pooling_for_eye_beam
+actions.demonic+=/fel_rush,if=talent.demon_blades.enabled&!cooldown.eye_beam.ready&(charges=2|(raid_event.movement.in>10&raid_event.adds.in>10))
+actions.demonic+=/demons_bite
+actions.demonic+=/throw_glaive,if=buff.out_of_range.up
+actions.demonic+=/fel_rush,if=movement.distance>15|buff.out_of_range.up
+actions.demonic+=/vengeful_retreat,if=movement.distance>15
+actions.demonic+=/throw_glaive,if=talent.demon_blades.enabled
+]]
+	if DeathSweep:Usable() and Player.blade_dance then
+		return DeathSweep
+	end
+	if EyeBeam:Usable() then
+		return EyeBeam
+	end
+	if FelBarrage:Usable() and (EyeBeam:Ready() or Metamorphosis:Up()) then
+		return FelBarrage
+	end
+	if BladeDance:Usable() and Player.blade_dance and not Metamorphosis:Ready() and EyeBeam:Cooldown() > (5 - RevolvingBlades:AzeriteRank() * 3) then
+		return BladeDance
+	end
+	if ImmolationAura:Usable() then
+		return ImmolationAura
+	end
+	if Annihilation:Usable() and not Player.pooling_for_blade_dance then
+		return Annihilation
+	end
+	if Felblade:Usable() and Player:FuryDeficit() >= 40 then
+		return Felblade
+	end
+	if ChaosStrike:Usable() and not Player.pooling_for_blade_dance and not Player.pooling_for_eye_beam then
+		return ChaosStrike
+	end
+	if FelRush:Usable() and DemonBlades.known and not EyeBeam:Ready() then
+		UseExtra(FelRush)
+	end
+	if DemonsBite:Usable() then
+		return DemonsBite
+	end
+	if DemonBlades.known then
+		return ThrowGlaive
+	end
+end
+
+APL[SPEC.HAVOC].essences = function(self)
+--[[
+actions.essences=concentrated_flame,if=(!dot.concentrated_flame_burn.ticking&!action.concentrated_flame.in_flight|full_recharge_time<gcd.max)
+actions.essences+=/blood_of_the_enemy,if=buff.metamorphosis.up|target.time_to_die<=10
+actions.essences+=/guardian_of_azeroth,if=(buff.metamorphosis.up&cooldown.metamorphosis.ready)|buff.metamorphosis.remains>25|target.time_to_die<=30
+actions.essences+=/focused_azerite_beam,if=spell_targets.blade_dance1>=2|raid_event.adds.in>60
+actions.essences+=/purifying_blast,if=spell_targets.blade_dance1>=2|raid_event.adds.in>60
+actions.essences+=/the_unbound_force,if=buff.reckless_force.up|buff.reckless_force_counter.stack<10
+actions.essences+=/ripple_in_space
+actions.essences+=/worldvein_resonance,if=buff.metamorphosis.up
+actions.essences+=/memory_of_lucid_dreams,if=fury<40&buff.metamorphosis.up
+actions.essences+=/reaping_flames,if=target.health.pct>80|target.health.pct<=20|target.time_to_pct_20>30
+]]
+	if ConcentratedFlame:Usable() and (ConcentratedFlame.dot:Down() or ConcentratedFlame:Charges() > 1.8) then
+		return ConcentratedFlame
+	end
+	if BloodOfTheEnemy:Usable() and (Metamorphosis:Up() or Target.timeToDie <= 10) then
+		return UseCooldown(BloodOfTheEnemy)
+	end
+	if GuardianOfAzeroth:Usable() and ((Metamorphosis:Up() and Metamorphosis:Ready()) or Metamorphosis:Remains() > 25 or Target.timeToDie <= 30) then
+		return UseCooldown(GuardianOfAzeroth)
+	end
+	if FocusedAzeriteBeam:Usable() then
+		return UseCooldown(FocusedAzeriteBeam)
+	end
+	if PurifyingBlast:Usable() then
+		return UseCooldown(PurifyingBlast)
+	end
+	if TheUnboundForce:Usable() and (RecklessForce:Up() or RecklessForce.counter:Stack() < 10) then
+		return UseCooldown(TheUnboundForce)
+	end
+	if RippleInSpace:Usable() then
+		return UseCooldown(RippleInSpace)
+	end
+	if WorldveinResonance:Usable() and Metamorphosis:Up() then
+		return UseCooldown(WorldveinResonance)
+	end
+	if MemoryOfLucidDreams:Usable() and Player:Fury() < 40 and Metamorphosis:Up() then
+		return UseCooldown(MemoryOfLucidDreams)
+	end
+	if ReapingFlames:Usable() then
+		return UseCooldown(ReapingFlames)
+	end
+end
+
+APL[SPEC.HAVOC].normal = function(self)
+--[[
+actions.normal=vengeful_retreat,if=talent.momentum.enabled&buff.prepared.down&time>1
+actions.normal+=/fel_rush,if=(variable.waiting_for_momentum|talent.fel_mastery.enabled)&(charges=2|(raid_event.movement.in>10&raid_event.adds.in>10))
+actions.normal+=/fel_barrage,if=!variable.waiting_for_momentum&(active_enemies>desired_targets|raid_event.adds.in>30)
+actions.normal+=/death_sweep,if=variable.blade_dance
+actions.normal+=/immolation_aura
+actions.normal+=/eye_beam,if=active_enemies>1&(!raid_event.adds.exists|raid_event.adds.up)&!variable.waiting_for_momentum
+actions.normal+=/blade_dance,if=variable.blade_dance
+actions.normal+=/felblade,if=fury.deficit>=40
+actions.normal+=/eye_beam,if=!talent.blind_fury.enabled&!variable.waiting_for_dark_slash&raid_event.adds.in>cooldown
+actions.normal+=/annihilation,if=(talent.demon_blades.enabled|!variable.waiting_for_momentum|fury.deficit<30|buff.metamorphosis.remains<5)&!variable.pooling_for_blade_dance&!variable.waiting_for_dark_slash
+actions.normal+=/chaos_strike,if=(talent.demon_blades.enabled|!variable.waiting_for_momentum|fury.deficit<30)&!variable.pooling_for_meta&!variable.pooling_for_blade_dance&!variable.waiting_for_dark_slash
+actions.normal+=/eye_beam,if=talent.blind_fury.enabled&raid_event.adds.in>cooldown
+actions.normal+=/demons_bite
+actions.normal+=/fel_rush,if=!talent.momentum.enabled&raid_event.movement.in>charges*10&talent.demon_blades.enabled
+actions.normal+=/felblade,if=movement.distance>15|buff.out_of_range.up
+actions.normal+=/fel_rush,if=movement.distance>15|(buff.out_of_range.up&!talent.momentum.enabled)
+actions.normal+=/vengeful_retreat,if=movement.distance>15
+actions.normal+=/throw_glaive,if=talent.demon_blades.enabled
+]]
+	if VengefulRetreat:Usable() and Momentum.known and Prepared:Down() and Player:TimeInCombat() > 1 then
+		UseExtra(VengefulRetreat)
+	end
+	if FelRush:Usable() and (Player.waiting_for_momentum or FelMastery.known) then
+		UseExtra(FelRush)
+	end
+	if FelBarrage:Usable() and not Player.waiting_for_momentum then
+		return FelBarrage
+	end
+	if DeathSweep:Usable() and Player.blade_dance then
+		return DeathSweep
+	end
+	if ImmolationAura:Usable() then
+		return ImmolationAura
+	end
+	if EyeBeam:Usable() and Player.enemies > 1 and not Player.waiting_for_momentum then
+		return EyeBeam
+	end
+	if BladeDance:Usable() and Player.blade_dance then
+		return BladeDance
+	end
+	if Felblade:Usable() and Player:FuryDeficit() >= 40 then
+		return Felblade
+	end
+	if EyeBeam:Usable() and not BlindFury.known and not Player.waiting_for_dark_slash then
+		return EyeBeam
+	end
+	if Annihilation:Usable() and (DemonBlades.known or not Player.waiting_for_momentum or Player:FuryDeficit() < 30 or Metamorphosis:Remains() < 5) and not Player.pooling_for_blade_dance and not Player.waiting_for_dark_slash then
+		return Annihilation
+	end
+	if ChaosStrike:Usable() and (DemonBlades.known or not Player.waiting_for_momentum or Player:FuryDeficit() < 30) and not Player.pooling_for_blade_dance and not Player.waiting_for_dark_slash then
+		return ChaosStrike
+	end
+	if EyeBeam:Usable() and BlindFury.known then
+		return EyeBeam
+	end
+	if DemonsBite:Usable() then
+		return DemonsBite
+	end
+	if DemonBlades.known then
+		return ThrowGlaive
+	end
 end
 
 APL[SPEC.VENGEANCE].main = function(self)
