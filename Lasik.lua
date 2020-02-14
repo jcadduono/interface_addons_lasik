@@ -732,9 +732,70 @@ end
 ------ Procs
 
 ---- Havoc
-
+local Annihilation = Ability:Add(201427, false, true, 201428)
+Annihilation.fury_cost = 40
+local BladeDance = Ability:Add(188499, false, true, 199552)
+BladeDance.cooldown_duration = 9
+BladeDance.fury_cost = 35
+BladeDance.hasted_cooldown = true
+BladeDance:AutoAoe(true)
+local ChaosStrike = Ability:Add(162794, false, true)
+ChaosStrike.fury_cost = 40
+local DeathSweep = Ability:Add(210152, false, true, 210153)
+DeathSweep.cooldown_duration = 9
+DeathSweep.fury_cost = 35
+DeathSweep.hasted_cooldown = true
+DeathSweep:AutoAoe(true)
+local DemonsBite = Ability:Add(162243, false, true)
+local EyeBeam = Ability:Add(198013, false, true, 198030)
+EyeBeam.buff_duration = 2
+EyeBeam.cooldown_duration = 30
+EyeBeam.fury_cost = 30
+EyeBeam:AutoAoe(true)
+local FelRush = Ability:Add(195072, false, true, 192611)
+FelRush.cooldown_duration = 10
+FelRush.requires_charge = true
+FelRush:AutoAoe()
+local Metamorphosis = Ability:Add(191427, true, true, 162264)
+Metamorphosis.buff_duration = 30
+Metamorphosis.cooldown_duration = 240
+local ThrowGlaive = Ability:Add(185123, false, true)
+ThrowGlaive.cooldown_duration = 9
+ThrowGlaive.hasted_cooldown = true
+ThrowGlaive:AutoAoe()
+local VengefulRetreat = Ability:Add(198793, false, true, 198813)
+VengefulRetreat.cooldown_duration = 25
+VengefulRetreat:AutoAoe()
 ------ Talents
-
+local BlindFury = Ability:Add(203550, false, true)
+local DarkSlash = Ability:Add(258860, false, true)
+DarkSlash.buff_duration = 8
+DarkSlash.cooldown_duration = 20
+local DemonBlades = Ability:Add(203555, false, true, 203796)
+local Demonic = Ability:Add(213410, false, true)
+local Felblade = Ability:Add(232893, false, true, 213243)
+Felblade.cooldown_duration = 15
+Felblade.hasted_cooldown = true
+local FelBarrage = Ability:Add(258925, false, true, 258926)
+FelBarrage.cooldown_duration = 60
+FelBarrage:AutoAoe()
+local FelMastery = Ability:Add(192939, false, true)
+local FirstBlood = Ability:Add(206416, false, true)
+local ImmolationAura = Ability:Add(258920, true, true)
+ImmolationAura.buff_duration = 10
+ImmolationAura.cooldown_duration = 30
+ImmolationAura.tick_interval = 1
+ImmolationAura.hasted_cooldown = true
+ImmolationAura.damage = Ability:Add(258922, false, true)
+ImmolationAura.damage:AutoAoe(true)
+local Momentum = Ability:Add(206476, true, true, 208628)
+Momentum.buff_duration = 6
+local Nemesis = Ability:Add(206491, false, true)
+Nemesis.buff_duration = 60
+Nemesis.cooldown_duration = 120
+local TrailOfRuin = Ability:Add(258881, false, true, 258883)
+TrailOfRuin.buff_duration = 4
+TrailOfRuin.tick_interval = 1
 ------ Procs
 
 ---- Vengeance
@@ -745,7 +806,9 @@ end
 
 -- Heart of Azeroth
 ---- Azerite Traits
-
+local ChaoticTransformation = Ability:Add(288754, false, true)
+local EyesOfRage = Ability:Add(278500, false, true)
+local RevolvingBlades = Ability:Add(279581, false, true)
 ---- Major Essences
 local BloodOfTheEnemy = Ability:Add(298277, false, true)
 BloodOfTheEnemy.buff_duration = 10
@@ -1080,6 +1143,15 @@ function Player:UpdateAbilities()
 		end
 	end
 
+	ImmolationAura.damage.known = ImmolationAura.known
+	if DemonBlades.known then
+		DemonsBite.known = false
+	end
+	if Metamorphosis.known then
+		Annihilation.known = ChaosStrike.known
+		DeathSweep.known = BladeDance.known
+	end
+
 	abilities.bySpellId = {}
 	abilities.velocity = {}
 	abilities.autoAoe = {}
@@ -1186,6 +1258,42 @@ function ConcentratedFlame.dot:Remains()
 		return self:Duration()
 	end
 	return Ability.Remains(self)
+end
+
+function BladeDance:FuryCost()
+	local cost = Ability.FuryCost(self)
+	if FirstBlood.known then
+		cost = cost - 20
+	end
+	return cost
+end
+
+function Annihilation:Usable()
+	if not Player.meta_active then
+		return false
+	end
+	return Ability.Usable(self)
+end
+
+function BladeDance:Usable()
+	if Player.meta_active then
+		return false
+	end
+	return Ability.Usable(self)
+end
+
+function ChaosStrike:Usable()
+	if Player.meta_active then
+		return false
+	end
+	return Ability.Usable(self)
+end
+
+function DeathSweep:Usable()
+	if not Player.meta_active then
+		return false
+	end
+	return Ability.Usable(self)
 end
 
 -- End Ability Modifications
@@ -1299,10 +1407,10 @@ actions.cooldown+=/call_action_list,name=essences
 	if Nemesis:Usable() then
 		UseCooldown(Nemesis)
 	end
-	if Opt.boss and Target.boss and PotionOfUnbridledFury:Usable() and (Metamorphosis:Remains() > 25 or Target.timeToDie < 60) then
+	if Opt.boss and Target.boss and PotionOfUnbridledFury:Usable() and (Player.meta_remains > 25 or Target.timeToDie < 60) then
 		UseCooldown(PotionOfUnbridledFury)
 	end
-	if Opt.trinket and Metamorphosis:Up() then
+	if Opt.trinket and Player.meta_active then
 		if Trinket1:Usable() then
 			return UseCooldown(Trinket1)
 		elseif Trinket2:Usable() then
@@ -1353,7 +1461,7 @@ actions.demonic+=/throw_glaive,if=talent.demon_blades.enabled
 	if EyeBeam:Usable() then
 		return EyeBeam
 	end
-	if FelBarrage:Usable() and (EyeBeam:Ready() or Metamorphosis:Up()) then
+	if FelBarrage:Usable() and (EyeBeam:Ready() or Player.meta_active) then
 		return FelBarrage
 	end
 	if BladeDance:Usable() and Player.blade_dance and not Metamorphosis:Ready() and EyeBeam:Cooldown() > (5 - RevolvingBlades:AzeriteRank() * 3) then
@@ -1398,10 +1506,10 @@ actions.essences+=/reaping_flames,if=target.health.pct>80|target.health.pct<=20|
 	if ConcentratedFlame:Usable() and (ConcentratedFlame.dot:Down() or ConcentratedFlame:Charges() > 1.8) then
 		return ConcentratedFlame
 	end
-	if BloodOfTheEnemy:Usable() and (Metamorphosis:Up() or Target.timeToDie <= 10) then
+	if BloodOfTheEnemy:Usable() and (Player.meta_active or Target.timeToDie <= 10) then
 		return UseCooldown(BloodOfTheEnemy)
 	end
-	if GuardianOfAzeroth:Usable() and ((Metamorphosis:Up() and Metamorphosis:Ready()) or Metamorphosis:Remains() > 25 or Target.timeToDie <= 30) then
+	if GuardianOfAzeroth:Usable() and ((Player.meta_active and Metamorphosis:Ready()) or Player.meta_remains > 25 or Target.timeToDie <= 30) then
 		return UseCooldown(GuardianOfAzeroth)
 	end
 	if FocusedAzeriteBeam:Usable() then
@@ -1416,10 +1524,10 @@ actions.essences+=/reaping_flames,if=target.health.pct>80|target.health.pct<=20|
 	if RippleInSpace:Usable() then
 		return UseCooldown(RippleInSpace)
 	end
-	if WorldveinResonance:Usable() and Metamorphosis:Up() then
+	if WorldveinResonance:Usable() and Player.meta_active then
 		return UseCooldown(WorldveinResonance)
 	end
-	if MemoryOfLucidDreams:Usable() and Player:Fury() < 40 and Metamorphosis:Up() then
+	if MemoryOfLucidDreams:Usable() and Player:Fury() < 40 and Player.meta_active then
 		return UseCooldown(MemoryOfLucidDreams)
 	end
 	if ReapingFlames:Usable() then
@@ -1475,7 +1583,7 @@ actions.normal+=/throw_glaive,if=talent.demon_blades.enabled
 	if EyeBeam:Usable() and not BlindFury.known and not Player.waiting_for_dark_slash then
 		return EyeBeam
 	end
-	if Annihilation:Usable() and (DemonBlades.known or not Player.waiting_for_momentum or Player:FuryDeficit() < 30 or Metamorphosis:Remains() < 5) and not Player.pooling_for_blade_dance and not Player.waiting_for_dark_slash then
+	if Annihilation:Usable() and (DemonBlades.known or not Player.waiting_for_momentum or Player:FuryDeficit() < 30 or Player.meta_remains < 5) and not Player.pooling_for_blade_dance and not Player.waiting_for_dark_slash then
 		return Annihilation
 	end
 	if ChaosStrike:Usable() and (DemonBlades.known or not Player.waiting_for_momentum or Player:FuryDeficit() < 30) and not Player.pooling_for_blade_dance and not Player.waiting_for_dark_slash then
@@ -1738,13 +1846,17 @@ end
 
 function UI:UpdateDisplay()
 	timer.display = 0
-	local dim
+	local dim, text_center
 	if Opt.dimmer then
 		dim = not ((not Player.main) or
 		           (Player.main.spellId and IsUsableSpell(Player.main.spellId)) or
 		           (Player.main.itemId and IsUsableItem(Player.main.itemId)))
 	end
+	if Player.meta_active then
+		text_center = format('%.1fs', Player.meta_remains)
+	end
 	lasikPanel.dimmer:SetShown(dim)
+	lasikPanel.text.center:SetText(text_center)
 	--lasikPanel.text.bl:SetText(format('%.1fs', Target.timeToDie))
 end
 
@@ -1767,6 +1879,8 @@ function UI:UpdateCombat()
 	Player.pain = UnitPower('player', 18)
 	Player.health = UnitHealth('player')
 	Player.health_max = UnitHealthMax('player')
+	Player.meta_remains = Metamorphosis:Remains()
+	Player.meta_active = Player.meta_remains > 0
 
 	trackAuras:Purge()
 	if Opt.auto_aoe then
@@ -1873,7 +1987,11 @@ function events:COMBAT_LOG_EVENT_UNFILTERED()
 
 	local ability = spellId and abilities.bySpellId[spellId]
 	if not ability then
-		--print(format('EVENT %s TRACK CHECK FOR UNKNOWN %s ID %d', eventType, spellName, spellId))
+--[[
+		if spellId and type(spellName) == 'string' then
+			print(format('EVENT %s TRACK CHECK FOR UNKNOWN %s ID %d', eventType, spellName, spellId))
+		end
+]]
 		return
 	end
 
