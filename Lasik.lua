@@ -120,7 +120,7 @@ local Player = {
 	combat_start = 0,
 	spec = 0,
 	target_mode = 0,
-	gcd = 1,
+	gcd = 1.5,
 	health = 0,
 	health_max = 0,
 	fury = 0,
@@ -726,7 +726,9 @@ end
 
 -- Demon Hunter Abilities
 ---- Multiple Specializations
-
+local Disrupt = Ability:Add(183752, false, true)
+Disrupt.cooldown_duration = 15
+Disrupt.triggers_gcd = false
 ------ Talents
 
 ------ Procs
@@ -1615,7 +1617,9 @@ APL[SPEC.VENGEANCE].main = function(self)
 end
 
 APL.Interrupt = function(self)
-
+	if Disrupt:Usable() then
+		return Disrupt
+	end
 end
 
 -- End Action Priority Lists
@@ -1875,6 +1879,7 @@ function UI:UpdateCombat()
 	Player.ability_casting = abilities.bySpellId[spellId]
 	Player.execute_remains = max(remains and (remains / 1000 - Player.ctime) or 0, Player.gcd_remains)
 	Player.haste_factor = 1 / (1 + UnitSpellHaste('player') / 100)
+	Player.gcd = 1.5 * Player.haste_factor
 	Player.fury = UnitPower('player', 17)
 	Player.pain = UnitPower('player', 18)
 	Player.health = UnitHealth('player')
