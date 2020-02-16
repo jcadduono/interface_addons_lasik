@@ -810,7 +810,8 @@ TrailOfRuin.tick_interval = 1
 ---- Azerite Traits
 local ChaoticTransformation = Ability:Add(288754, false, true)
 local EyesOfRage = Ability:Add(278500, false, true)
-local RevolvingBlades = Ability:Add(279581, false, true)
+local RevolvingBlades = Ability:Add(279581, false, true, 279584)
+RevolvingBlades.buff_duration = 12
 ---- Major Essences
 local BloodOfTheEnemy = Ability:Add(298277, false, true)
 BloodOfTheEnemy.buff_duration = 10
@@ -1267,8 +1268,12 @@ function BladeDance:FuryCost()
 	if FirstBlood.known then
 		cost = cost - 20
 	end
-	return cost
+	if RevolvingBlades.known then
+		cost = cost - (3 * RevolvingBlades:Stack())
+	end
+	return max(0, cost)
 end
+DeathSweep.FuryCost = BladeDance.FuryCost
 
 function Annihilation:Usable()
 	if not Player.meta_active then
@@ -1276,13 +1281,7 @@ function Annihilation:Usable()
 	end
 	return Ability.Usable(self)
 end
-
-function BladeDance:Usable()
-	if Player.meta_active then
-		return false
-	end
-	return Ability.Usable(self)
-end
+DeathSweep.Usable = Annihilation.Usable
 
 function ChaosStrike:Usable()
 	if Player.meta_active then
@@ -1290,13 +1289,7 @@ function ChaosStrike:Usable()
 	end
 	return Ability.Usable(self)
 end
-
-function DeathSweep:Usable()
-	if not Player.meta_active then
-		return false
-	end
-	return Ability.Usable(self)
-end
+BladeDance.Usable = ChaosStrike.Usable
 
 -- End Ability Modifications
 
