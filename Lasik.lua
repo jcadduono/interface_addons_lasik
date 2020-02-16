@@ -1392,7 +1392,7 @@ actions.cooldown+=/use_items,if=buff.metamorphosis.up
 actions.cooldown+=/call_action_list,name=essences
 ]]
 	if Metamorphosis:Usable() then
-		if (
+		if (Target.boss or Player.enemies > 1 or Target.timeToDie > (Metamorphosis:Remains() + 6)) and (
 			(not (Demonic.known or Player.pooling_for_meta or Player.waiting_for_nemesis) or Target.timeToDie < 25) or
 			(Demonic.known and (not ChaoticTransformation.known or (EyeBeam:Cooldown() > 20 and (not Player.blade_dance or BladeDance:Cooldown() > Player.gcd))))
 		) then
@@ -1462,7 +1462,7 @@ actions.demonic+=/throw_glaive,if=talent.demon_blades.enabled
 	if BladeDance:Usable() and Player.blade_dance and not Metamorphosis:Ready() and EyeBeam:Cooldown() > (5 - RevolvingBlades:AzeriteRank() * 3) then
 		return BladeDance
 	end
-	if ImmolationAura:Usable() then
+	if ImmolationAura:Usable() and (Player.enemies > 1 or Target.timeToDie > 4) then
 		return ImmolationAura
 	end
 	if Annihilation:Usable() and not Player.pooling_for_blade_dance then
@@ -1563,7 +1563,7 @@ actions.normal+=/throw_glaive,if=talent.demon_blades.enabled
 	if DeathSweep:Usable() and Player.blade_dance then
 		return DeathSweep
 	end
-	if ImmolationAura:Usable() then
+	if ImmolationAura:Usable() and (Player.enemies > 1 or Target.timeToDie > 4) then
 		return ImmolationAura
 	end
 	if EyeBeam:Usable() and Player.enemies > 1 and not Player.waiting_for_momentum then
