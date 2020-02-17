@@ -741,6 +741,10 @@ BladeDance.cooldown_duration = 9
 BladeDance.fury_cost = 35
 BladeDance.hasted_cooldown = true
 BladeDance:AutoAoe(true)
+local ChaosNova = Ability:Add(179057, false, true)
+ChaosNova.buff_duration = 2
+ChaosNova.cooldown_duration = 60
+ChaosNova.fury_cost = 30
 local ChaosStrike = Ability:Add(162794, false, true)
 ChaosStrike.fury_cost = 40
 local DeathSweep = Ability:Add(210152, false, true, 210153)
@@ -781,6 +785,11 @@ Felblade.hasted_cooldown = true
 local FelBarrage = Ability:Add(258925, false, true, 258926)
 FelBarrage.cooldown_duration = 60
 FelBarrage:AutoAoe()
+local FelEruption = Ability:Add(211881, false, true)
+FelEruption.buff_duration = 4
+FelEruption.cooldown_duration =  30
+FelEruption.fury_cost = 10
+FelEruption.pain_cost = 10
 local FelMastery = Ability:Add(192939, false, true)
 local FirstBlood = Ability:Add(206416, false, true)
 local ImmolationAura = Ability:Add(258920, true, true)
@@ -798,6 +807,7 @@ Nemesis.cooldown_duration = 120
 local TrailOfRuin = Ability:Add(258881, false, true, 258883)
 TrailOfRuin.buff_duration = 4
 TrailOfRuin.tick_interval = 1
+local UnleashedPower = Ability:Add(206477, false, true)
 ------ Procs
 
 ---- Vengeance
@@ -1263,6 +1273,13 @@ function ConcentratedFlame.dot:Remains()
 	return Ability.Remains(self)
 end
 
+function ChaosNova:FuryCost()
+	if UnleashedPower.known then
+		return 0
+	end
+	return Ability.FuryCost(self)
+end
+
 function BladeDance:FuryCost()
 	local cost = Ability.FuryCost(self)
 	if FirstBlood.known then
@@ -1290,6 +1307,13 @@ function ChaosStrike:Usable()
 	return Ability.Usable(self)
 end
 BladeDance.Usable = ChaosStrike.Usable
+
+function FelEruption:Usable()
+	if not Target.stunnable then
+		return false
+	end
+	return Ability.Usable(self)
+end
 
 -- End Ability Modifications
 
@@ -1612,6 +1636,12 @@ end
 APL.Interrupt = function(self)
 	if Disrupt:Usable() then
 		return Disrupt
+	end
+	if EyesOfRage.known and ChaosNova:Usable() and Player.enemies >= (UnleashedPower.known and 3 or 5) and not EyeBeam:Ready(4) then
+		return ChaosNova
+	end
+	if FelEruption:Usable() then
+		return FelEruption
 	end
 end
 
