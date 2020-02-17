@@ -765,6 +765,9 @@ FelRush:AutoAoe()
 local Metamorphosis = Ability:Add(191427, true, true, 162264)
 Metamorphosis.buff_duration = 30
 Metamorphosis.cooldown_duration = 240
+Metamorphosis.stun = Ability:Add(200166, false, true)
+Metamorphosis.stun.buff_duration = 3
+Metamorphosis.stun:AutoAoe(false, 'apply')
 local ThrowGlaive = Ability:Add(185123, false, true)
 ThrowGlaive.cooldown_duration = 9
 ThrowGlaive.hasted_cooldown = true
@@ -820,6 +823,8 @@ local UnleashedPower = Ability:Add(206477, false, true)
 ---- Azerite Traits
 local ChaoticTransformation = Ability:Add(288754, false, true)
 local EyesOfRage = Ability:Add(278500, false, true)
+local FuriousGaze = Ability:Add(273231, true, true, 273232)
+FuriousGaze.buff_duration = 12
 local RevolvingBlades = Ability:Add(279581, false, true, 279584)
 RevolvingBlades.buff_duration = 12
 ---- Major Essences
@@ -1161,6 +1166,7 @@ function Player:UpdateAbilities()
 		DemonsBite.known = false
 	end
 	if Metamorphosis.known then
+		Metamorphosis.stun.known = true
 		Annihilation.known = ChaosStrike.known
 		DeathSweep.known = BladeDance.known
 	end
@@ -1464,6 +1470,7 @@ actions.demonic+=/eye_beam,if=raid_event.adds.up|raid_event.adds.in>25
 actions.demonic+=/fel_barrage,if=((!cooldown.eye_beam.up|buff.metamorphosis.up)&raid_event.adds.in>30)|active_enemies>desired_targets
 actions.demonic+=/blade_dance,if=variable.blade_dance&!cooldown.metamorphosis.ready&(cooldown.eye_beam.remains>(5-azerite.revolving_blades.rank*3)|(raid_event.adds.in>cooldown&raid_event.adds.in<25))
 actions.demonic+=/immolation_aura
+actions.demonic+=/focused_azerite_beam,if=buff.furious_gaze.up
 actions.demonic+=/annihilation,if=!variable.pooling_for_blade_dance
 actions.demonic+=/felblade,if=fury.deficit>=40
 actions.demonic+=/chaos_strike,if=!variable.pooling_for_blade_dance&!variable.pooling_for_eye_beam
@@ -1488,6 +1495,9 @@ actions.demonic+=/throw_glaive,if=talent.demon_blades.enabled
 	end
 	if ImmolationAura:Usable() and (Player.enemies > 1 or Target.timeToDie > 4) then
 		return ImmolationAura
+	end
+	if FuriousGaze.known and FocusedAzeriteBeam:Usable() and FuriousGaze:Up() then
+		UseCooldown(FocusedAzeriteBeam, true)
 	end
 	if Annihilation:Usable() and not Player.pooling_for_blade_dance then
 		return Annihilation
@@ -1514,7 +1524,7 @@ APL[SPEC.HAVOC].essences = function(self)
 actions.essences=concentrated_flame,if=(!dot.concentrated_flame_burn.ticking&!action.concentrated_flame.in_flight|full_recharge_time<gcd.max)
 actions.essences+=/blood_of_the_enemy,if=buff.metamorphosis.up|target.time_to_die<=10
 actions.essences+=/guardian_of_azeroth,if=(buff.metamorphosis.up&cooldown.metamorphosis.ready)|buff.metamorphosis.remains>25|target.time_to_die<=30
-actions.essences+=/focused_azerite_beam,if=spell_targets.blade_dance1>=2|raid_event.adds.in>60
+actions.essences+=/focused_azerite_beam,if=!azerite.furious_gaze.enabled&(spell_targets.blade_dance1>=2|raid_event.adds.in>60)
 actions.essences+=/purifying_blast,if=spell_targets.blade_dance1>=2|raid_event.adds.in>60
 actions.essences+=/the_unbound_force,if=buff.reckless_force.up|buff.reckless_force_counter.stack<10
 actions.essences+=/ripple_in_space
@@ -1531,8 +1541,8 @@ actions.essences+=/reaping_flames,if=target.health.pct>80|target.health.pct<=20|
 	if GuardianOfAzeroth:Usable() and ((Player.meta_active and Metamorphosis:Ready()) or Player.meta_remains > 25 or Target.timeToDie <= 30) then
 		return UseCooldown(GuardianOfAzeroth)
 	end
-	if FocusedAzeriteBeam:Usable() then
-		return UseCooldown(FocusedAzeriteBeam)
+	if not FuriousGaze.known and FocusedAzeriteBeam:Usable() then
+		return UseCooldown(FocusedAzeriteBeam, true)
 	end
 	if PurifyingBlast:Usable() then
 		return UseCooldown(PurifyingBlast)
@@ -1561,6 +1571,7 @@ actions.normal+=/fel_rush,if=(variable.waiting_for_momentum|talent.fel_mastery.e
 actions.normal+=/fel_barrage,if=!variable.waiting_for_momentum&(active_enemies>desired_targets|raid_event.adds.in>30)
 actions.normal+=/death_sweep,if=variable.blade_dance
 actions.normal+=/immolation_aura
+actions.normal+=/focused_azerite_beam,if=buff.furious_gaze.up
 actions.normal+=/eye_beam,if=active_enemies>1&(!raid_event.adds.exists|raid_event.adds.up)&!variable.waiting_for_momentum
 actions.normal+=/blade_dance,if=variable.blade_dance
 actions.normal+=/felblade,if=fury.deficit>=40
@@ -1589,6 +1600,9 @@ actions.normal+=/throw_glaive,if=talent.demon_blades.enabled
 	end
 	if ImmolationAura:Usable() and (Player.enemies > 1 or Target.timeToDie > 4) then
 		return ImmolationAura
+	end
+	if FuriousGaze.known and FocusedAzeriteBeam:Usable() and FuriousGaze:Up() then
+		UseCooldown(FocusedAzeriteBeam)
 	end
 	if EyeBeam:Usable() and Player.enemies > 1 and not Player.waiting_for_momentum then
 		return EyeBeam
