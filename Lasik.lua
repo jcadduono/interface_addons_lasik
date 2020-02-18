@@ -1422,9 +1422,10 @@ actions.cooldown+=/use_items,if=buff.metamorphosis.up
 actions.cooldown+=/call_action_list,name=essences
 ]]
 	if Metamorphosis:Usable() then
-		if (Target.boss or Player.enemies > 1 or Target.timeToDie > (Metamorphosis:Remains() + 6)) and (
-			(not (Demonic.known or Player.pooling_for_meta or Player.waiting_for_nemesis) or Target.timeToDie < 25) or
-			(Demonic.known and (not ChaoticTransformation.known or (EyeBeam:Cooldown() > 20 and (not Player.blade_dance or BladeDance:Cooldown() > Player.gcd))))
+		if (Target.boss or Player.enemies > 1 or Target.timeToDie > (Metamorphosis:Remains() + 6)) and (not ChaoticTransformation.known or not EyeBeam:Ready(6)) and (
+			(Target.boss and Target.timeToDie < 25) or
+			(not (Demonic.known or Player.pooling_for_meta or Player.waiting_for_nemesis)) or
+			(Demonic.known and (not ChaoticTransformation.known or (not EyeBeam:Ready(20) and (not Player.blade_dance or BladeDance:Cooldown() > Player.gcd))))
 		) then
 			UseCooldown(Metamorphosis)
 		end
