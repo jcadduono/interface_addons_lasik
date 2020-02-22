@@ -1469,7 +1469,7 @@ APL[SPEC.HAVOC].demonic = function(self)
 actions.demonic=death_sweep,if=variable.blade_dance
 actions.demonic+=/eye_beam,if=raid_event.adds.up|raid_event.adds.in>25
 actions.demonic+=/fel_barrage,if=((!cooldown.eye_beam.up|buff.metamorphosis.up)&raid_event.adds.in>30)|active_enemies>desired_targets
-actions.demonic+=/blade_dance,if=variable.blade_dance&!cooldown.metamorphosis.ready&(cooldown.eye_beam.remains>(5-azerite.revolving_blades.rank*3)|(raid_event.adds.in>cooldown&raid_event.adds.in<25))
+actions.demonic+=/blade_dance,if=variable.blade_dance&(!cooldown.metamorphosis.ready|azerite.chaotic_transformation.enabled)&(cooldown.eye_beam.remains>(5-azerite.revolving_blades.rank*3)|(raid_event.adds.in>cooldown&raid_event.adds.in<25))
 actions.demonic+=/immolation_aura
 actions.demonic+=/focused_azerite_beam,if=buff.furious_gaze.up
 actions.demonic+=/annihilation,if=!variable.pooling_for_blade_dance
@@ -1491,7 +1491,7 @@ actions.demonic+=/throw_glaive,if=talent.demon_blades.enabled
 	if FelBarrage:Usable() and (EyeBeam:Ready() or Player.meta_active) then
 		return FelBarrage
 	end
-	if BladeDance:Usable() and Player.blade_dance and not Metamorphosis:Ready() and EyeBeam:Cooldown() > (5 - RevolvingBlades:AzeriteRank() * 3) then
+	if BladeDance:Usable() and Player.blade_dance and (not Metamorphosis:Ready() or ChaoticTransformation.known) and EyeBeam:Cooldown() > (5 - RevolvingBlades:AzeriteRank() * 3) then
 		return BladeDance
 	end
 	if ImmolationAura:Usable() and (Player.enemies > 1 or Target.timeToDie > 4) then
