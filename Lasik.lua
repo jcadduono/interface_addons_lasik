@@ -87,6 +87,7 @@ local function InitOpts()
 		auto_aoe_ttl = 10,
 		pot = false,
 		trinket = true,
+		meta_ttd = 8,
 	})
 end
 
@@ -1346,6 +1347,8 @@ local APL = {
 }
 
 APL[SPEC.HAVOC].main = function(self)
+	Player.use_meta = Opt.cooldown and (Target.boss or (not Opt.boss_only and Target.timeToDie > Opt.meta_ttd))
+
 	if Player:TimeInCombat() == 0 then
 --[[
 actions.precombat=flask
@@ -1365,7 +1368,7 @@ actions.precombat+=/use_item,name=azsharas_font_of_power
 				UseCooldown(PotionOfUnbridledFury)
 			end
 		end
-		if not ChaoticTransformation.known and Metamorphosis:Usable() then
+		if Player.use_meta and not ChaoticTransformation.known and Metamorphosis:Usable() then
 			UseCooldown(Metamorphosis)
 		end
 	end
@@ -1387,7 +1390,7 @@ actions+=/run_action_list,name=normal
 ]]
 	Player.blade_dance = FirstBlood.known or Player.enemies >= (3 - (TrailOfRuin.known and 1 or 0))
 	Player.waiting_for_nemesis = not (not Nemesis.known or Nemesis:Ready() or Nemesis:Cooldown() > Target.timeToDie or Nemesis:Cooldown() > 60)
-	Player.pooling_for_meta = not Demonic.known and Metamorphosis:Ready(6) and Player:FuryDeficit() > 30 and (not Player.waiting_for_nemesis or Nemesis:Ready(10))
+	Player.pooling_for_meta = Player.use_meta and not Demonic.known and Metamorphosis:Ready(6) and Player:FuryDeficit() > 30 and (not Player.waiting_for_nemesis or Nemesis:Ready(10))
 	Player.pooling_for_blade_dance = Player.blade_dance and Player:Fury() < (75 - (FirstBlood.known and 20 or 0))
 	Player.pooling_for_eye_beam = Demonic.known and not BlindFury.known and EyeBeam:Ready(Player.gcd * 2) and Player:FuryDeficit() > 20
 	Player.waiting_for_dark_slash = DarkSlash.known and not Player.pooling_for_blade_dance and not Player.pooling_for_meta and not DarkSlash:Ready()
@@ -1395,7 +1398,7 @@ actions+=/run_action_list,name=normal
 	local apl
 	apl = self:cooldown()
 	if apl then return apl end
-	Player.pick_up_fragment = Player:FuryDeficit() >= 35 and (not EyesOfRage.known or EyeBeam:Cooldown() > 1.4)
+	-- Player.pick_up_fragment = Player:FuryDeficit() >= 35 and (not EyesOfRage.known or EyeBeam:Cooldown() > 1.4)
 	if DarkSlash.known and (Player.waiting_for_dark_slash or DarkSlash:Up()) then
 		apl = self:dark_slash()
 		if apl then return apl end
@@ -1421,20 +1424,20 @@ actions.cooldown+=/use_item,name=azsharas_font_of_power,if=cooldown.metamorphosi
 actions.cooldown+=/use_items,if=buff.metamorphosis.up
 actions.cooldown+=/call_action_list,name=essences
 ]]
-	if Metamorphosis:Usable() then
+	if Player.use_meta and Metamorphosis:Usable() then
 		if (Target.boss or Player.enemies > 1 or Target.timeToDie > (Metamorphosis:Remains() + 6)) and (not ChaoticTransformation.known or not EyeBeam:Ready(6)) and (
 			(Target.boss and Target.timeToDie < 25) or
 			(not (Demonic.known or Player.pooling_for_meta or Player.waiting_for_nemesis)) or
 			(Demonic.known and (not ChaoticTransformation.known or (not EyeBeam:Ready(20) and (not Player.blade_dance or BladeDance:Cooldown() > Player.gcd))))
 		) then
-			UseCooldown(Metamorphosis)
+			return UseCooldown(Metamorphosis)
 		end
 	end
 	if Nemesis:Usable() then
-		UseCooldown(Nemesis)
+		return UseCooldown(Nemesis)
 	end
 	if Opt.boss and Target.boss and PotionOfUnbridledFury:Usable() and (Player.meta_remains > 25 or Target.timeToDie < 60) then
-		UseCooldown(PotionOfUnbridledFury)
+		return UseCooldown(PotionOfUnbridledFury)
 	end
 	if Opt.trinket and Player.meta_active then
 		if Trinket1:Usable() then
@@ -1443,7 +1446,7 @@ actions.cooldown+=/call_action_list,name=essences
 			return UseCooldown(Trinket2)
 		end
 	end
-	self:essences()
+	return self:essences()
 end
 
 
@@ -1491,7 +1494,7 @@ actions.demonic+=/throw_glaive,if=talent.demon_blades.enabled
 	if FelBarrage:Usable() and (EyeBeam:Ready() or Player.meta_active) then
 		return FelBarrage
 	end
-	if BladeDance:Usable() and Player.blade_dance and (not Metamorphosis:Ready() or ChaoticTransformation.known) and EyeBeam:Cooldown() > (5 - RevolvingBlades:AzeriteRank() * 3) then
+	if BladeDance:Usable() and Player.blade_dance and (not Player.use_meta or not Metamorphosis:Ready() or ChaoticTransformation.known) and EyeBeam:Cooldown() > (5 - RevolvingBlades:AzeriteRank() * 3) then
 		return BladeDance
 	end
 	if ImmolationAura:Usable() and (Player.enemies > 1 or Target.timeToDie > 4) then
@@ -1603,7 +1606,7 @@ actions.normal+=/throw_glaive,if=talent.demon_blades.enabled
 		return ImmolationAura
 	end
 	if FuriousGaze.known and FocusedAzeriteBeam:Usable() and FuriousGaze:Up() then
-		UseCooldown(FocusedAzeriteBeam)
+		UseCooldown(FocusedAzeriteBeam, true)
 	end
 	if EyeBeam:Usable() and Player.enemies > 1 and not Player.waiting_for_momentum then
 		return EyeBeam
@@ -2538,6 +2541,12 @@ function SlashCmdList.Lasik(msg, editbox)
 		end
 		return Status('Show on-use trinkets in cooldown UI', Opt.trinket)
 	end
+	if msg[1] == 'meta' then
+		if msg[2] then
+			Opt.meta_ttd = tonumber(msg[2]) or 8
+		end
+		return Status('Minimum enemy lifetime to use Metamorphosis on (ignored on bosses)', Opt.meta_ttd, 'seconds')
+	end
 	if msg[1] == 'reset' then
 		lasikPanel:ClearAllPoints()
 		lasikPanel:SetPoint('CENTER', 0, -169)
@@ -2568,6 +2577,7 @@ function SlashCmdList.Lasik(msg, editbox)
 		'ttl |cFFFFD000[seconds]|r  - time target exists in auto AoE after being hit (default is 10 seconds)',
 		'pot |cFF00C000on|r/|cFFC00000off|r - show flasks and battle potions in cooldown UI',
 		'trinket |cFF00C000on|r/|cFFC00000off|r - show on-use trinkets in cooldown UI',
+		'meta |cFFFFD000[seconds]|r  - minimum enemy lifetime to use Metamorphosis on (default is 8 seconds, ignored on bosses)',
 		'|cFFFFD000reset|r - reset the location of the Lasik UI to default',
 	} do
 		print('  ' .. SLASH_Lasik1 .. ' ' .. cmd)
