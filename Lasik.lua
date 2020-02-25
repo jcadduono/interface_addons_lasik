@@ -1421,7 +1421,7 @@ actions.cooldown+=/use_item,effect_name=cyclotronic_blast,if=buff.metamorphosis.
 actions.cooldown+=/use_item,name=ashvanes_razor_coral,if=debuff.razor_coral_debuff.down|(debuff.conductive_ink_debuff.up|buff.metamorphosis.remains>20)&target.health.pct<31|target.time_to_die<20
 actions.cooldown+=/use_item,name=azsharas_font_of_power,if=cooldown.metamorphosis.remains<10|cooldown.metamorphosis.remains>60
 # Default fallback for usable items.
-actions.cooldown+=/use_items,if=buff.metamorphosis.up
+actions.cooldown+=/use_items,if=(azerite.furious_gaze.enabled&(cooldown.eye_beam.ready|buff.furious_gaze.remains>6))|(!azerite.furious_gaze.enabled&buff.metamorphosis.up)|target.time_to_die<25
 actions.cooldown+=/call_action_list,name=essences
 ]]
 	if Player.use_meta and Metamorphosis:Usable() then
@@ -1439,7 +1439,7 @@ actions.cooldown+=/call_action_list,name=essences
 	if Opt.boss and Target.boss and PotionOfUnbridledFury:Usable() and (Player.meta_remains > 25 or Target.timeToDie < 60) then
 		return UseCooldown(PotionOfUnbridledFury)
 	end
-	if Opt.trinket and Player.meta_active then
+	if Opt.trinket and ((FuriousGaze.known and (EyeBeam:Ready() or FuriousGaze:Remains() > 6)) or (not FuriousGaze.known and Player.meta_active) or (Target.boss and Target.timeToDie < 25)) then
 		if Trinket1:Usable() then
 			return UseCooldown(Trinket1)
 		elseif Trinket2:Usable() then
