@@ -128,6 +128,7 @@ local Player = {
 	fury_max = 100,
 	pain = 0,
 	pain_max = 100,
+	soul_fragments = 0,
 	last_swing_taken = 0,
 	previous_gcd = {},-- list of previous GCD abilities
 	item_use_blacklist = { -- list of item IDs with on-use effects we should mark unusable
@@ -418,6 +419,7 @@ function Ability:Add(spellId, buff, player, spellId2)
 		tick_interval = 0,
 		max_range = 40,
 		velocity = 0,
+		last_used = 0,
 		auraTarget = buff and 'player' or 'target',
 		auraFilter = (buff and 'HELPFUL' or 'HARMFUL') .. (player and '|PLAYER' or '')
 	}
@@ -730,6 +732,9 @@ end
 local Disrupt = Ability:Add(183752, false, true)
 Disrupt.cooldown_duration = 15
 Disrupt.triggers_gcd = false
+local Torment = Ability:Add(185245, false, true)
+Torment.cooldown_duration = 8
+Torment.triggers_gcd = false
 ------ Talents
 
 ------ Procs
@@ -815,9 +820,69 @@ local UnleashedPower = Ability:Add(206477, false, true)
 ------ Procs
 
 ---- Vengeance
-
+local DemonSpikes = Ability:Add(203720, true, true, 203819)
+DemonSpikes.buff_duration = 6
+DemonSpikes.cooldown_duration = 20
+DemonSpikes.hasted_cooldown = true
+DemonSpikes.requires_charge = true
+local FieryBrand = Ability:Add(204021, false, true)
+FieryBrand.buff_duration = 8
+FieryBrand.cooldown_duration = 60
+FieryBrand:TrackAuras()
+local ImmolationAuraV = Ability:Add(178740, true, true)
+ImmolationAuraV.buff_duration = 6
+ImmolationAuraV.cooldown_duration = 15
+ImmolationAuraV.tick_interval = 1
+ImmolationAuraV.hasted_cooldown = true
+ImmolationAuraV.damage = Ability:Add(178741, false, true)
+ImmolationAuraV.damage:AutoAoe(true)
+local InfernalStrike = Ability:Add(189110, false, true, 189112)
+InfernalStrike.cooldown_duration = 20
+InfernalStrike.requires_charge = true
+InfernalStrike.triggers_gcd = false
+InfernalStrike:AutoAoe()
+local MetamorphosisV = Ability:Add(187827, true, true)
+MetamorphosisV.buff_duration = 15
+MetamorphosisV.cooldown_duration = 180
+local Shear = Ability:Add(203783, false, true)
+local SigilOfChains = Ability:Add(202138, false, true)
+SigilOfChains.cooldown_duration = 90
+SigilOfChains.buff_duration = 2
+local SigilOfFlame = Ability:Add(204596, false, true)
+SigilOfFlame.cooldown_duration = 30
+SigilOfFlame.buff_duration = 2
+SigilOfFlame.dot = Ability:Add(204598, false, true)
+SigilOfFlame.dot.buff_duration = 6
+SigilOfFlame.dot.tick_interval = 1
+SigilOfFlame.dot:AutoAoe(false, 'apply')
+local SigilOfMisery = Ability:Add(207684, false, true)
+SigilOfMisery.cooldown_duration = 90
+SigilOfMisery.buff_duration = 2
+local SigilOfSilence = Ability:Add(202137, false, true)
+SigilOfSilence.cooldown_duration = 60
+SigilOfSilence.buff_duration = 2
+local SoulCleave = Ability:Add(228477, false, true, 228478)
+SoulCleave.pain_cost = 30
+SoulCleave:AutoAoe(true)
+local SoulFragments = Ability:Add(204254, true, true, 203981)
+local ThrowGlaiveV = Ability:Add(204157, false, true)
+ThrowGlaiveV.cooldown_duration = 3
+ThrowGlaiveV.hasted_cooldown = true
+ThrowGlaiveV:AutoAoe()
 ------ Talents
-
+local CharredFlesh = Ability:Add(264002, true, true)
+local FelDevastation = Ability:Add(212084, false, true)
+FelDevastation.buff_duration = 2
+FelDevastation.cooldown_duration = 60
+FelDevastation:AutoAoe()
+local FlameCrash = Ability:Add(227322, true, true)
+local Fracture = Ability:Add(263642, false, true)
+Fracture.cooldown_duration = 4.5
+Fracture.hasted_cooldown = true
+Fracture.requires_charge = true
+local SpiritBomb = Ability:Add(247454, false, true)
+SpiritBomb.pain_cost = 30
+SpiritBomb:AutoAoe(true)
 ------ Procs
 
 -- Heart of Azeroth
@@ -1163,8 +1228,13 @@ function Player:UpdateAbilities()
 	end
 
 	ImmolationAura.damage.known = ImmolationAura.known
+	ImmolationAuraV.damage.known = ImmolationAuraV.known
+	SigilOfFlame.dot.known = SigilOfFlame.known
 	if DemonBlades.known then
 		DemonsBite.known = false
+	end
+	if Fracture.known then
+		Shear.known = false
 	end
 	if Metamorphosis.known then
 		Metamorphosis.stun.known = true
@@ -1322,6 +1392,17 @@ function FelEruption:Usable()
 	return Ability.Usable(self)
 end
 
+function InfernalStrike:SigilPlaced()
+	return FlameCrash.known and (Player.time - self.last_used) < 3
+end
+
+function SigilOfFlame:Placed()
+	return (Player.time - self.last_used) < 3
+end
+SigilOfChains.Placed = SigilOfFlame.Placed
+SigilOfMisery.Placed = SigilOfFlame.Placed
+SigilOfSilence.Placed = SigilOfFlame.Placed
+
 -- End Ability Modifications
 
 local function UseCooldown(ability, overwrite)
@@ -1436,7 +1517,7 @@ actions.cooldown+=/call_action_list,name=essences
 	if Nemesis:Usable() then
 		return UseCooldown(Nemesis)
 	end
-	if Opt.boss and Target.boss and PotionOfUnbridledFury:Usable() and (Player.meta_remains > 25 or Target.timeToDie < 60) then
+	if Opt.pot and Target.boss and PotionOfUnbridledFury:Usable() and (Player.meta_remains > 25 or Target.timeToDie < 60) then
 		return UseCooldown(PotionOfUnbridledFury)
 	end
 	if Opt.trinket and ((FuriousGaze.known and (EyeBeam:Ready() or FuriousGaze:Remains() > 6)) or (not FuriousGaze.known and Player.meta_active) or (Target.boss and Target.timeToDie < 25)) then
@@ -1639,6 +1720,15 @@ end
 
 APL[SPEC.VENGEANCE].main = function(self)
 	if Player:TimeInCombat() == 0 then
+--[[
+actions.precombat=flask
+actions.precombat+=/augmentation
+actions.precombat+=/food
+# Snapshot raid buffed stats before combat begins and pre-potting is done.
+actions.precombat+=/snapshot_stats
+actions.precombat+=/potion
+actions.precombat+=/use_item,name=azsharas_font_of_power
+]]
 		if Opt.pot and not Player:InArenaOrBattleground() then
 			if GreaterFlaskOfEndlessFathoms:Usable() and GreaterFlaskOfEndlessFathoms.buff:Remains() < 300 then
 				UseCooldown(GreaterFlaskOfTheCurrents)
@@ -1648,7 +1738,180 @@ APL[SPEC.VENGEANCE].main = function(self)
 			end
 		end
 	end
+--[[
+actions=auto_attack
+actions+=/consume_magic
+actions+=/call_action_list,name=brand,if=talent.charred_flesh.enabled
+actions+=/call_action_list,name=defensives
+actions+=/call_action_list,name=cooldowns
+actions+=/call_action_list,name=normal
+]]
+	local apl
+	if CharredFlesh.known then
+		apl = self:brand()
+		if apl then return apl end
+	end
+	apl = self:defensives()
+	if apl then return apl end
+	apl = self:cooldowns()
+	if apl then return apl end
+	return self:normal()
+end
 
+APL[SPEC.VENGEANCE].brand = function(self)
+--[[
+actions.brand=sigil_of_flame,if=cooldown.fiery_brand.remains<2
+actions.brand+=/infernal_strike,if=cooldown.fiery_brand.remains=0
+actions.brand+=/fiery_brand
+actions.brand+=/immolation_aura,if=dot.fiery_brand.ticking
+actions.brand+=/fel_devastation,if=dot.fiery_brand.ticking
+actions.brand+=/infernal_strike,if=dot.fiery_brand.ticking
+actions.brand+=/sigil_of_flame,if=dot.fiery_brand.ticking
+]]
+	if SigilOfFlame:Usable() and not SigilOfFlame:Placed() and FieryBrand:Ready(2) then
+		return SigilOfFlame
+	end
+	if InfernalStrike:Usable() and FieryBrand:Ready() then
+		return InfernalStrike
+	end
+	if FieryBrand:Usable() then
+		UseCooldown(FieryBrand)
+	end
+	if FieryBrand:Ticking() then
+		if ImmolationAuraV:Usable() then
+			return ImmolationAuraV
+		end
+		if FelDevastation:Usable() then
+			UseCooldown(FelDevastation)
+		end
+		if InfernalStrike:Usable() then
+			return InfernalStrike
+		end
+		if SigilOfFlame:Usable() and not SigilOfFlame:Placed() and SigilOfFlame.dot:Remains() < 3 then
+			return SigilOfFlame
+		end
+	end
+end
+
+APL[SPEC.VENGEANCE].cooldowns = function(self)
+--[[
+actions.cooldowns=potion
+actions.cooldowns+=/concentrated_flame,if=(!dot.concentrated_flame_burn.ticking&!action.concentrated_flame.in_flight|full_recharge_time<gcd.max)
+actions.cooldowns+=/worldvein_resonance,if=buff.lifeblood.stack<3
+actions.cooldowns+=/memory_of_lucid_dreams
+# Default fallback for usable essences.
+actions.cooldowns+=/heart_essence
+actions.cooldowns+=/use_item,effect_name=cyclotronic_blast,if=buff.memory_of_lucid_dreams.down
+actions.cooldowns+=/use_item,name=ashvanes_razor_coral,if=debuff.razor_coral_debuff.down|debuff.conductive_ink_debuff.up&target.health.pct<31|target.time_to_die<20
+# Default fallback for usable items.
+actions.cooldowns+=/use_items
+]]
+	if Opt.pot and Target.boss and PotionOfUnbridledFury:Usable() then
+		return UseCooldown(PotionOfUnbridledFury)
+	end
+	if ConcentratedFlame:Usable() and (ConcentratedFlame.dot:Down() or ConcentratedFlame:Charges() > 1.8) then
+		return ConcentratedFlame
+	end
+	if WorldveinResonance:Usable() and Lifeblood:Stack() < 3 then
+		return UseCooldown(WorldveinResonance)
+	end
+	if MemoryOfLucidDreams:Usable() then
+		return UseCooldown(MemoryOfLucidDreams)
+	end
+	if BloodOfTheEnemy:Usable() then
+		return UseCooldown(BloodOfTheEnemy)
+	end
+	if GuardianOfAzeroth:Usable() then
+		return UseCooldown(GuardianOfAzeroth)
+	end
+	if FocusedAzeriteBeam:Usable() then
+		return UseCooldown(FocusedAzeriteBeam, true)
+	end
+	if PurifyingBlast:Usable() then
+		return UseCooldown(PurifyingBlast)
+	end
+	if TheUnboundForce:Usable() and (RecklessForce:Up() or RecklessForce.counter:Stack() < 10) then
+		return UseCooldown(TheUnboundForce)
+	end
+	if RippleInSpace:Usable() then
+		return UseCooldown(RippleInSpace)
+	end
+	if ReapingFlames:Usable() then
+		return UseCooldown(ReapingFlames)
+	end
+	if Opt.trinket then
+		if Trinket1:Usable() then
+			return UseCooldown(Trinket1)
+		elseif Trinket2:Usable() then
+			return UseCooldown(Trinket2)
+		end
+	end
+end
+
+APL[SPEC.VENGEANCE].defensives = function(self)
+--[[
+actions.defensives=demon_spikes
+actions.defensives+=/metamorphosis
+actions.defensives+=/fiery_brand
+]]
+	if DemonSpikes:Usable() then
+		UseExtra(DemonSpikes)
+	end
+	if MetamorphosisV:Usable() then
+		UseExtra(MetamorphosisV)
+	end
+	if FieryBrand:Usable() then
+		UseCooldown(FieryBrand)
+	end
+end
+
+APL[SPEC.VENGEANCE].normal = function(self)
+--[[
+actions.normal=infernal_strike,if=(!talent.flame_crash.enabled|(dot.sigil_of_flame.remains<3&!action.infernal_strike.sigil_placed))
+actions.normal+=/spirit_bomb,if=((buff.metamorphosis.up&soul_fragments>=3)|soul_fragments>=4)
+actions.normal+=/soul_cleave,if=(!talent.spirit_bomb.enabled&((buff.metamorphosis.up&soul_fragments>=3)|soul_fragments>=4))
+actions.normal+=/soul_cleave,if=talent.spirit_bomb.enabled&soul_fragments=0
+actions.normal+=/immolation_aura,if=pain<=90
+actions.normal+=/felblade,if=pain<=70
+actions.normal+=/fracture,if=soul_fragments<=3
+actions.normal+=/fel_devastation
+actions.normal+=/sigil_of_flame
+actions.normal+=/shear
+actions.normal+=/throw_glaive
+]]
+	if InfernalStrike:Usable() and (not FlameCrash.known or (SigilOfFlame.dot:Remains() < 3 and not SigilOfFlame:Placed())) then
+		return InfernalStrike
+	end
+	if SpiritBomb:Usable() and Player.soul_fragments >= (Player.meta_active and 3 or 4) then
+		return SpiritBomb
+	end
+	if SoulCleave:Usable() and (
+		(not SpiritBomb.known and Player.soul_fragments >= (Player.meta_active and 3 or 4)) or
+		(SpiritBomb.known and Player.soul_fragments == 0)
+	) then
+		return SoulCleave
+	end
+	if ImmolationAuraV:Usable() and Player:Pain() <= 90 then
+		return ImmolationAuraV
+	end
+	if Felblade:Usable() and Player:Pain() <= 70 then
+		return Felblade
+	end
+	if Fracture:Usable() and Player.soul_fragments <= 3 then
+		return Fracture
+	end
+	if FelDevastation:Usable() then
+		UseCooldown(FelDevastation)
+	end
+	if SigilOfFlame:Usable() and not SigilOfFlame:Placed() and SigilOfFlame.dot:Remains() < 3 then
+		return SigilOfFlame
+	end
+	if Shear:Usable() then
+		return Shear
+	end
+	if ThrowGlaiveV:Usable() then
+		return ThrowGlaiveV
+	end
 end
 
 APL.Interrupt = function(self)
@@ -1891,7 +2154,7 @@ end
 
 function UI:UpdateDisplay()
 	timer.display = 0
-	local dim, text_center
+	local dim, text_center, text_tl
 	if Opt.dimmer then
 		dim = not ((not Player.main) or
 		           (Player.main.spellId and IsUsableSpell(Player.main.spellId)) or
@@ -1902,6 +2165,10 @@ function UI:UpdateDisplay()
 	end
 	lasikPanel.dimmer:SetShown(dim)
 	lasikPanel.text.center:SetText(text_center)
+	if Player.soul_fragments > 0 then
+		text_tl = Player.soul_fragments
+	end
+	lasikPanel.text.tl:SetText(text_tl)
 	--lasikPanel.text.bl:SetText(format('%.1fs', Target.timeToDie))
 end
 
@@ -1925,7 +2192,13 @@ function UI:UpdateCombat()
 	Player.pain = UnitPower('player', 18)
 	Player.health = UnitHealth('player')
 	Player.health_max = UnitHealthMax('player')
-	Player.meta_remains = Metamorphosis:Remains()
+	if Player.spec == SPEC.HAVOC then
+		Player.meta_remains = Metamorphosis:Remains()
+		Player.soul_fragments = 0
+	elseif Player.spec == SPEC.VENGEANCE then
+		Player.meta_remains = MetamorphosisV:Remains()
+		Player.soul_fragments = SoulFragments:Stack()
+	end
 	Player.meta_active = Player.meta_remains > 0
 
 	trackAuras:Purge()
@@ -2002,8 +2275,7 @@ function events:ADDON_LOADED(name)
 	end
 end
 
-function events:COMBAT_LOG_EVENT_UNFILTERED()
-	local timeStamp, eventType, _, srcGUID, _, _, _, dstGUID, _, _, _, spellId, spellName, _, missType = CombatLogGetCurrentEventInfo()
+local function CombatEvent(timeStamp, eventType, srcGUID, dstGUID, spellId, spellName, missType)
 	Player.time = timeStamp
 	Player.ctime = GetTime()
 	Player.time_diff = Player.ctime - Player.time
@@ -2060,6 +2332,7 @@ function events:COMBAT_LOG_EVENT_UNFILTERED()
 	if eventType == 'SPELL_CAST_SUCCESS' then
 		if srcGUID == Player.guid or ability.player_triggered then
 			Player.last_ability = ability
+			ability.last_used = Player.time
 			if ability.triggers_gcd then
 				Player.previous_gcd[10] = nil
 				table.insert(Player.previous_gcd, 1, ability)
@@ -2072,6 +2345,9 @@ function events:COMBAT_LOG_EVENT_UNFILTERED()
 				lasikPreviousPanel.border:SetTexture('Interface\\AddOns\\Lasik\\border.blp')
 				lasikPreviousPanel.icon:SetTexture(ability.icon)
 				lasikPreviousPanel:Show()
+			end
+			if ability == InfernalStrike and FlameCrash.known then
+				SigilOfFlame.last_used = Player.time + 1
 			end
 		end
 		return
@@ -2104,6 +2380,21 @@ function events:COMBAT_LOG_EVENT_UNFILTERED()
 			lasikPreviousPanel.border:SetTexture('Interface\\AddOns\\Lasik\\misseffect.blp')
 		end
 	end
+	if eventType == 'SPELL_DAMAGE' and ability == InfernalStrike and FlameCrash.known then
+		SigilOfFlame.last_used = Player.time
+	end
+end
+
+function events:UNIT_SPELLCAST_SUCCEEDED(srcName, castId, spellId)
+	-- workaround for Infernal Strike not triggering a combat event
+	if srcName == 'player' and spellId == InfernalStrike.spellId then
+		CombatEvent(GetTime() - Player.time_diff, 'SPELL_CAST_SUCCESS', Player.guid, nil, InfernalStrike.spellId, InfernalStrike.spellName)
+	end
+end
+
+function events:COMBAT_LOG_EVENT_UNFILTERED()
+	local timeStamp, eventType, _, srcGUID, _, _, _, dstGUID, _, _, _, spellId, spellName, _, missType = CombatLogGetCurrentEventInfo()
+	CombatEvent(timeStamp, eventType, srcGUID, dstGUID, spellId, spellName, missType)
 end
 
 function events:PLAYER_TARGET_CHANGED()
@@ -2151,7 +2442,6 @@ function events:PLAYER_REGEN_ENABLED()
 		autoAoe:Clear()
 		autoAoe:Update()
 	end
-	Player.opener_done = nil
 end
 
 function events:PLAYER_EQUIPMENT_CHANGED()
