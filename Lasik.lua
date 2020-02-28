@@ -173,23 +173,22 @@ lasikPanel.text.tl = lasikPanel.text:CreateFontString(nil, 'OVERLAY')
 lasikPanel.text.tl:SetFont('Fonts\\FRIZQT__.TTF', 12, 'OUTLINE')
 lasikPanel.text.tl:SetPoint('TOPLEFT', lasikPanel, 'TOPLEFT', 2.5, -3)
 lasikPanel.text.tl:SetJustifyH('LEFT')
+lasikPanel.text.tl:SetJustifyV('TOP')
 lasikPanel.text.tr = lasikPanel.text:CreateFontString(nil, 'OVERLAY')
 lasikPanel.text.tr:SetFont('Fonts\\FRIZQT__.TTF', 12, 'OUTLINE')
 lasikPanel.text.tr:SetPoint('TOPRIGHT', lasikPanel, 'TOPRIGHT', -2.5, -3)
 lasikPanel.text.tr:SetJustifyH('RIGHT')
+lasikPanel.text.tr:SetJustifyV('TOP')
 lasikPanel.text.bl = lasikPanel.text:CreateFontString(nil, 'OVERLAY')
 lasikPanel.text.bl:SetFont('Fonts\\FRIZQT__.TTF', 12, 'OUTLINE')
 lasikPanel.text.bl:SetPoint('BOTTOMLEFT', lasikPanel, 'BOTTOMLEFT', 2.5, 3)
 lasikPanel.text.bl:SetJustifyH('LEFT')
+lasikPanel.text.bl:SetJustifyV('BOTTOM')
 lasikPanel.text.br = lasikPanel.text:CreateFontString(nil, 'OVERLAY')
 lasikPanel.text.br:SetFont('Fonts\\FRIZQT__.TTF', 12, 'OUTLINE')
 lasikPanel.text.br:SetPoint('BOTTOMRIGHT', lasikPanel, 'BOTTOMRIGHT', -2.5, 3)
 lasikPanel.text.br:SetJustifyH('RIGHT')
-lasikPanel.text.center = lasikPanel.text:CreateFontString(nil, 'OVERLAY')
-lasikPanel.text.center:SetFont('Fonts\\FRIZQT__.TTF', 12, 'OUTLINE')
-lasikPanel.text.center:SetAllPoints(lasikPanel.text)
-lasikPanel.text.center:SetJustifyH('CENTER')
-lasikPanel.text.center:SetJustifyV('CENTER')
+lasikPanel.text.br:SetJustifyV('BOTTOM')
 lasikPanel.button = CreateFrame('Button', nil, lasikPanel)
 lasikPanel.button:SetAllPoints(lasikPanel)
 lasikPanel.button:RegisterForClicks('LeftButtonDown', 'RightButtonDown', 'MiddleButtonDown')
@@ -2154,20 +2153,20 @@ end
 
 function UI:UpdateDisplay()
 	timer.display = 0
-	local dim, text_center, text_tl
+	local dim, text_tr, text_tl
 	if Opt.dimmer then
 		dim = not ((not Player.main) or
 		           (Player.main.spellId and IsUsableSpell(Player.main.spellId)) or
 		           (Player.main.itemId and IsUsableItem(Player.main.itemId)))
 	end
 	if Player.meta_active then
-		text_center = format('%.1fs', Player.meta_remains)
+		text_tr = format('%.1fs', Player.meta_remains)
 	end
-	lasikPanel.dimmer:SetShown(dim)
-	lasikPanel.text.center:SetText(text_center)
 	if Player.soul_fragments > 0 then
 		text_tl = Player.soul_fragments
 	end
+	lasikPanel.dimmer:SetShown(dim)
+	lasikPanel.text.tr:SetText(text_tr)
 	lasikPanel.text.tl:SetText(text_tl)
 	--lasikPanel.text.bl:SetText(format('%.1fs', Target.timeToDie))
 end
