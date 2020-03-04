@@ -132,6 +132,7 @@ local Player = {
 	last_swing_taken = 0,
 	previous_gcd = {},-- list of previous GCD abilities
 	item_use_blacklist = { -- list of item IDs with on-use effects we should mark unusable
+		[174044] = true, -- Humming Black Dragonscale (parachute)
 	},
 }
 
@@ -882,6 +883,7 @@ Fracture.requires_charge = true
 local SpiritBomb = Ability:Add(247454, false, true)
 SpiritBomb.pain_cost = 30
 SpiritBomb:AutoAoe(true)
+local QuickenedSigils = Ability:Add(209281, true, true)
 ------ Procs
 
 -- Heart of Azeroth
@@ -1391,12 +1393,19 @@ function FelEruption:Usable()
 	return Ability.Usable(self)
 end
 
-function InfernalStrike:SigilPlaced()
-	return FlameCrash.known and (Player.time - self.last_used) < 3
+function SigilOfFlame:Duration()
+	local duration = Ability.Duration(self)
+	if QuickenedSigils.known then
+		duration = duration - 1
+	end
+	return duration
 end
+SigilOfChains.Duration = SigilOfFlame.Duration
+SigilOfMisery.Duration = SigilOfFlame.Duration
+SigilOfSilence.Duration = SigilOfFlame.Duration
 
 function SigilOfFlame:Placed()
-	return (Player.time - self.last_used) < 3
+	return (Player.time - self.last_used) < (self:Duration() + 0.5)
 end
 SigilOfChains.Placed = SigilOfFlame.Placed
 SigilOfMisery.Placed = SigilOfFlame.Placed
@@ -1786,7 +1795,7 @@ actions.brand+=/sigil_of_flame,if=dot.fiery_brand.ticking
 		if InfernalStrike:Usable() then
 			return InfernalStrike
 		end
-		if SigilOfFlame:Usable() and not SigilOfFlame:Placed() and SigilOfFlame.dot:Remains() < 3 then
+		if SigilOfFlame:Usable() and not SigilOfFlame:Placed() and SigilOfFlame.dot:Remains() < (SigilOfFlame:Duration() + 1) then
 			return SigilOfFlame
 		end
 	end
@@ -1878,7 +1887,7 @@ actions.normal+=/sigil_of_flame
 actions.normal+=/shear
 actions.normal+=/throw_glaive
 ]]
-	if InfernalStrike:Usable() and (not FlameCrash.known or (SigilOfFlame.dot:Remains() < 3 and not SigilOfFlame:Placed())) then
+	if InfernalStrike:Usable() and (not FlameCrash.known or (SigilOfFlame.dot:Remains() < (SigilOfFlame:Duration() + 1) and not SigilOfFlame:Placed())) then
 		return InfernalStrike
 	end
 	if SpiritBomb:Usable() and Player.soul_fragments >= (Player.meta_active and 3 or 4) then
@@ -1902,7 +1911,7 @@ actions.normal+=/throw_glaive
 	if FelDevastation:Usable() then
 		UseCooldown(FelDevastation)
 	end
-	if SigilOfFlame:Usable() and not SigilOfFlame:Placed() and SigilOfFlame.dot:Remains() < 3 then
+	if SigilOfFlame:Usable() and not SigilOfFlame:Placed() and SigilOfFlame.dot:Remains() < (SigilOfFlame:Duration() + 1) then
 		return SigilOfFlame
 	end
 	if Shear:Usable() then
