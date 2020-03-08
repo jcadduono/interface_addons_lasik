@@ -1780,7 +1780,7 @@ actions.brand+=/sigil_of_flame,if=dot.fiery_brand.ticking
 		return SigilOfFlame
 	end
 	if InfernalStrike:Usable() and FieryBrand:Ready() then
-		return InfernalStrike
+		UseCooldown(InfernalStrike)
 	end
 	if FieryBrand:Usable() then
 		UseCooldown(FieryBrand)
@@ -1793,7 +1793,7 @@ actions.brand+=/sigil_of_flame,if=dot.fiery_brand.ticking
 			UseCooldown(FelDevastation)
 		end
 		if InfernalStrike:Usable() then
-			return InfernalStrike
+			UseCooldown(InfernalStrike)
 		end
 		if SigilOfFlame:Usable() and not SigilOfFlame:Placed() and SigilOfFlame.dot:Remains() < (SigilOfFlame:Duration() + 1) then
 			return SigilOfFlame
@@ -1888,7 +1888,7 @@ actions.normal+=/shear
 actions.normal+=/throw_glaive
 ]]
 	if InfernalStrike:Usable() and (not FlameCrash.known or (SigilOfFlame.dot:Remains() < (SigilOfFlame:Duration() + 1) and not SigilOfFlame:Placed())) then
-		return InfernalStrike
+		UseCooldown(InfernalStrike)
 	end
 	if SpiritBomb:Usable() and Player.soul_fragments >= (Player.meta_active and 3 or 4) then
 		return SpiritBomb
