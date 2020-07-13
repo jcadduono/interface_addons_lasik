@@ -317,6 +317,7 @@ local autoAoe = {
 	blacklist = {},
 	ignored_units = {
 		[120651] = true, -- Explosives (Mythic+ affix)
+		[161895] = true, -- Thing From Beyond (40+ Corruption)
 	},
 }
 
