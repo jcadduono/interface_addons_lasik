@@ -403,7 +403,8 @@ local abilities = {
 
 function Ability:Add(spellId, buff, player, spellId2)
 	local ability = {
-		spellId = spellId,
+		spellIds = type(spellId) == 'table' and spellId or { spellId },
+		spellId = 0,
 		spellId2 = spellId2,
 		name = false,
 		icon = false,
@@ -896,12 +897,12 @@ FuriousGaze.buff_duration = 12
 local RevolvingBlades = Ability:Add(279581, false, true, 279584)
 RevolvingBlades.buff_duration = 12
 ---- Major Essences
-local BloodOfTheEnemy = Ability:Add(298277, false, true)
+local BloodOfTheEnemy = Ability:Add({297108, 298273, 298277} , false, true)
 BloodOfTheEnemy.buff_duration = 10
 BloodOfTheEnemy.cooldown_duration = 120
 BloodOfTheEnemy.essence_id = 23
 BloodOfTheEnemy.essence_major = true
-local ConcentratedFlame = Ability:Add(295373, true, true, 295378)
+local ConcentratedFlame = Ability:Add({295373, 299349, 299353}, true, true, 295378)
 ConcentratedFlame.buff_duration = 180
 ConcentratedFlame.cooldown_duration = 30
 ConcentratedFlame.requires_charge = true
@@ -913,42 +914,42 @@ ConcentratedFlame.dot.buff_duration = 6
 ConcentratedFlame.dot.tick_interval = 2
 ConcentratedFlame.dot.essence_id = 12
 ConcentratedFlame.dot.essence_major = true
-local GuardianOfAzeroth = Ability:Add(295840, false, true)
+local GuardianOfAzeroth = Ability:Add({295840, 299355, 299358}, false, true)
 GuardianOfAzeroth.cooldown_duration = 180
 GuardianOfAzeroth.essence_id = 14
 GuardianOfAzeroth.essence_major = true
-local FocusedAzeriteBeam = Ability:Add(295258, false, true)
+local FocusedAzeriteBeam = Ability:Add({295258, 299336, 299338}, false, true)
 FocusedAzeriteBeam.cooldown_duration = 90
 FocusedAzeriteBeam.essence_id = 5
 FocusedAzeriteBeam.essence_major = true
-local MemoryOfLucidDreams = Ability:Add(298357, true, true)
+local MemoryOfLucidDreams = Ability:Add({298357, 299372, 299374}, true, true)
 MemoryOfLucidDreams.buff_duration = 15
 MemoryOfLucidDreams.cooldown_duration = 120
 MemoryOfLucidDreams.essence_id = 27
 MemoryOfLucidDreams.essence_major = true
-local PurifyingBlast = Ability:Add(295337, false, true, 295338)
+local PurifyingBlast = Ability:Add({295337, 299345, 299347}, false, true, 295338)
 PurifyingBlast.cooldown_duration = 60
 PurifyingBlast.essence_id = 6
 PurifyingBlast.essence_major = true
 PurifyingBlast:AutoAoe(true)
-local ReapingFlames = Ability:Add(310690, false, true) -- 311195
+local ReapingFlames = Ability:Add({310690, 311194, 311195}, false, true)
 ReapingFlames.cooldown_duration = 45
 ReapingFlames.essence_id = 35
 ReapingFlames.essence_major = true
-local RippleInSpace = Ability:Add(302731, true, true)
+local RippleInSpace = Ability:Add({302731, 302982, 302983}, true, true)
 RippleInSpace.buff_duration = 2
 RippleInSpace.cooldown_duration = 60
 RippleInSpace.essence_id = 15
 RippleInSpace.essence_major = true
-local TheUnboundForce = Ability:Add(298452, false, true)
+local TheUnboundForce = Ability:Add({298452, 299376,299378}, false, true)
 TheUnboundForce.cooldown_duration = 45
 TheUnboundForce.essence_id = 28
 TheUnboundForce.essence_major = true
-local VisionOfPerfection = Ability:Add(299370, true, true, 303345)
+local VisionOfPerfection = Ability:Add({296325, 299368, 299370}, true, true, 303345)
 VisionOfPerfection.buff_duration = 10
 VisionOfPerfection.essence_id = 22
 VisionOfPerfection.essence_major = true
-local WorldveinResonance = Ability:Add(295186, true, true)
+local WorldveinResonance = Ability:Add({295186, 298628, 299334}, true, true)
 WorldveinResonance.cooldown_duration = 60
 WorldveinResonance.essence_id = 4
 WorldveinResonance.essence_major = true
@@ -976,8 +977,6 @@ RealityShift.essence_id = 15
 local RecklessForce = Ability:Add(302932, true, true)
 RecklessForce.buff_duration = 3
 RecklessForce.essence_id = 28
-RecklessForce.counter = Ability:Add(302917, true, true)
-RecklessForce.counter.essence_id = 28
 local StriveForPerfection = Ability:Add(299369, true, true)
 StriveForPerfection.essence_id = 22
 -- Racials
@@ -1209,17 +1208,19 @@ function Player:UpdateAbilities()
 	self.fury_max = UnitPowerMax('player', 17)
 	self.pain_max = UnitPowerMax('player', 18)
 
-	local _, ability
+	local _, ability, spellId
 
 	for _, ability in next, abilities.all do
-		ability.name, _, ability.icon = GetSpellInfo(ability.spellId)
 		ability.known = false
-		if C_LevelLink.IsSpellLocked(ability.spellId) or (ability.spellId2 and C_LevelLink.IsSpellLocked(ability.spellId2)) then
-			-- spell is locked, do not mark as known
-		elseif IsPlayerSpell(ability.spellId) or (ability.spellId2 and IsPlayerSpell(ability.spellId2)) then
-			ability.known = true
-		elseif Azerite.traits[ability.spellId] then
-			ability.known = true
+		for _, spellId in next, ability.spellIds do
+			ability.spellId, ability.name, _, ability.icon = spellId, GetSpellInfo(spellId)
+			if IsPlayerSpell(spellId) or Azerite.traits[spellId] then
+				ability.known = true
+				break
+			end
+		end
+		if C_LevelLink.IsSpellLocked(ability.spellId) then
+			ability.known = false -- spell is locked, do not mark as known
 		elseif ability.essence_id and Azerite.essences[ability.essence_id] then
 			if ability.essence_major then
 				ability.known = Azerite.essences[ability.essence_id].major
@@ -2090,22 +2091,22 @@ end
 UI.anchor_points = {
 	blizzard = { -- Blizzard Personal Resource Display (Default)
 		[SPEC.HAVOC] = {
-			['above'] = { 'BOTTOM', 'TOP', 0, 42 },
-			['below'] = { 'TOP', 'BOTTOM', 0, -18 }
+			['above'] = { 'BOTTOM', 'TOP', 0, 36 },
+			['below'] = { 'TOP', 'BOTTOM', 0, -9 }
 		},
 		[SPEC.VENGEANCE] = {
-			['above'] = { 'BOTTOM', 'TOP', 0, 42 },
-			['below'] = { 'TOP', 'BOTTOM', 0, -18 }
+			['above'] = { 'BOTTOM', 'TOP', 0, 36 },
+			['below'] = { 'TOP', 'BOTTOM', 0, -9 }
 		},
 	},
 	kui = { -- Kui Nameplates
 		[SPEC.HAVOC] = {
-			['above'] = { 'BOTTOM', 'TOP', 0, 30 },
-			['below'] = { 'TOP', 'BOTTOM', 0, -4 }
+			['above'] = { 'BOTTOM', 'TOP', 0, 28 },
+			['below'] = { 'TOP', 'BOTTOM', 0, 4 }
 		},
 		[SPEC.VENGEANCE] = {
-			['above'] = { 'BOTTOM', 'TOP', 0, 30 },
-			['below'] = { 'TOP', 'BOTTOM', 0, -4 }
+			['above'] = { 'BOTTOM', 'TOP', 0, 28 },
+			['below'] = { 'TOP', 'BOTTOM', 0, 4 }
 		},
 	},
 }
@@ -2117,7 +2118,7 @@ function UI.OnResourceFrameHide()
 end
 
 function UI.OnResourceFrameShow()
-	if Opt.snap then
+	if Opt.snap and UI.anchor.points then
 		local p = UI.anchor.points[Player.spec][Opt.snap]
 		lasikPanel:ClearAllPoints()
 		lasikPanel:SetPoint(p[1], UI.anchor.frame, p[2], p[3], p[4])
@@ -2133,7 +2134,7 @@ function UI:HookResourceFrame()
 		self.anchor.frame = KuiNameplatesPlayerAnchor
 	else
 		self.anchor.points = self.anchor_points.blizzard
-		self.anchor.frame = NamePlateDriverFrame:GetClassNameplateBar()
+		self.anchor.frame = NamePlateDriverFrame:GetClassNameplateManaBar()
 	end
 	if self.anchor.frame then
 		self.anchor.frame:HookScript('OnHide', self.OnResourceFrameHide)
@@ -2328,6 +2329,7 @@ local function CombatEvent(timeStamp, eventType, srcGUID, dstGUID, spellId, spel
 	   eventType == 'SPELL_CAST_FAILED' or
 	   eventType == 'SPELL_AURA_REMOVED' or
 	   eventType == 'SPELL_DAMAGE' or
+	   eventType == 'SPELL_ABSORBED' or
 	   eventType == 'SPELL_PERIODIC_DAMAGE' or
 	   eventType == 'SPELL_MISSED' or
 	   eventType == 'SPELL_AURA_APPLIED' or
@@ -2381,16 +2383,16 @@ local function CombatEvent(timeStamp, eventType, srcGUID, dstGUID, spellId, spel
 			ability:RecordTargetHit(dstGUID)
 		end
 	end
-	if eventType == 'SPELL_MISSED' or eventType == 'SPELL_DAMAGE' or eventType == 'SPELL_AURA_APPLIED' or eventType == 'SPELL_AURA_REFRESH' then
+	if eventType == 'SPELL_ABSORBED' or eventType == 'SPELL_MISSED' or eventType == 'SPELL_DAMAGE' or eventType == 'SPELL_AURA_APPLIED' or eventType == 'SPELL_AURA_REFRESH' then
 		if ability.travel_start and ability.travel_start[dstGUID] then
 			ability.travel_start[dstGUID] = nil
 		end
 		if Opt.previous and Opt.miss_effect and eventType == 'SPELL_MISSED' and lasikPanel:IsVisible() and ability == lasikPreviousPanel.ability then
 			lasikPreviousPanel.border:SetTexture('Interface\\AddOns\\Lasik\\misseffect.blp')
 		end
-	end
-	if eventType == 'SPELL_DAMAGE' and ability == InfernalStrike and FlameCrash.known then
-		SigilOfFlame.last_used = Player.time
+		if ability == InfernalStrike and FlameCrash.known then
+			SigilOfFlame.last_used = Player.time
+		end
 	end
 end
 
