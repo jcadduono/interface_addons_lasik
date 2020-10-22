@@ -126,8 +126,6 @@ local Player = {
 	health_max = 0,
 	fury = 0,
 	fury_max = 100,
-	pain = 0,
-	pain_max = 100,
 	soul_fragments = 0,
 	last_swing_taken = 0,
 	previous_gcd = {},-- list of previous GCD abilities
@@ -415,7 +413,6 @@ function Ability:Add(spellId, buff, player, spellId2)
 		hasted_ticks = false,
 		known = false,
 		fury_cost = 0,
-		pain_cost = 0,
 		cooldown_duration = 0,
 		buff_duration = 0,
 		tick_interval = 0,
@@ -449,14 +446,8 @@ function Ability:Usable()
 	if not self.known then
 		return false
 	end
-	if Player.spec == SPEC.HAVOC then
-		if self:FuryCost() > Player.fury then
-			return false
-		end
-	elseif Player.spec == SPEC.VENGEANCE then
-		if self:PainCost() > Player.pain then
-			return false
-		end
+	if self:FuryCost() > Player.fury then
+		return false
 	end
 	if self.requires_charge and self:Charges() == 0 then
 		return false
@@ -570,10 +561,6 @@ end
 
 function Ability:FuryCost()
 	return self.fury_cost
-end
-
-function Ability:PainCost()
-	return self.pain_cost
 end
 
 function Ability:Charges()
@@ -734,6 +721,13 @@ end
 local Disrupt = Ability:Add(183752, false, true)
 Disrupt.cooldown_duration = 15
 Disrupt.triggers_gcd = false
+local ImmolationAura = Ability:Add(258920, true, true)
+ImmolationAura.buff_duration = 6
+ImmolationAura.cooldown_duration = 15
+ImmolationAura.tick_interval = 1
+ImmolationAura.hasted_cooldown = true
+ImmolationAura.damage = Ability:Add(258922, false, true)
+ImmolationAura.damage:AutoAoe(true)
 local Torment = Ability:Add(185245, false, true)
 Torment.cooldown_duration = 8
 Torment.triggers_gcd = false
@@ -800,16 +794,8 @@ local FelEruption = Ability:Add(211881, false, true)
 FelEruption.buff_duration = 4
 FelEruption.cooldown_duration =  30
 FelEruption.fury_cost = 10
-FelEruption.pain_cost = 10
 local FelMastery = Ability:Add(192939, false, true)
 local FirstBlood = Ability:Add(206416, false, true)
-local ImmolationAura = Ability:Add(258920, true, true)
-ImmolationAura.buff_duration = 10
-ImmolationAura.cooldown_duration = 30
-ImmolationAura.tick_interval = 1
-ImmolationAura.hasted_cooldown = true
-ImmolationAura.damage = Ability:Add(258922, false, true)
-ImmolationAura.damage:AutoAoe(true)
 local Momentum = Ability:Add(206476, true, true, 208628)
 Momentum.buff_duration = 6
 local Nemesis = Ability:Add(206491, false, true)
@@ -827,17 +813,14 @@ DemonSpikes.buff_duration = 6
 DemonSpikes.cooldown_duration = 20
 DemonSpikes.hasted_cooldown = true
 DemonSpikes.requires_charge = true
+local FelDevastation = Ability:Add(212084, false, true)
+FelDevastation.buff_duration = 2
+FelDevastation.cooldown_duration = 60
+FelDevastation:AutoAoe()
 local FieryBrand = Ability:Add(204021, false, true)
 FieryBrand.buff_duration = 8
 FieryBrand.cooldown_duration = 60
 FieryBrand:TrackAuras()
-local ImmolationAuraV = Ability:Add(178740, true, true)
-ImmolationAuraV.buff_duration = 6
-ImmolationAuraV.cooldown_duration = 15
-ImmolationAuraV.tick_interval = 1
-ImmolationAuraV.hasted_cooldown = true
-ImmolationAuraV.damage = Ability:Add(178741, false, true)
-ImmolationAuraV.damage:AutoAoe(true)
 local InfernalStrike = Ability:Add(189110, false, true, 189112)
 InfernalStrike.cooldown_duration = 20
 InfernalStrike.requires_charge = true
@@ -864,7 +847,7 @@ local SigilOfSilence = Ability:Add(202137, false, true)
 SigilOfSilence.cooldown_duration = 60
 SigilOfSilence.buff_duration = 2
 local SoulCleave = Ability:Add(228477, false, true, 228478)
-SoulCleave.pain_cost = 30
+SoulCleave.fury_cost = 30
 SoulCleave:AutoAoe(true)
 local SoulFragments = Ability:Add(204254, true, true, 203981)
 local ThrowGlaiveV = Ability:Add(204157, false, true)
@@ -873,17 +856,13 @@ ThrowGlaiveV.hasted_cooldown = true
 ThrowGlaiveV:AutoAoe()
 ------ Talents
 local CharredFlesh = Ability:Add(264002, true, true)
-local FelDevastation = Ability:Add(212084, false, true)
-FelDevastation.buff_duration = 2
-FelDevastation.cooldown_duration = 60
-FelDevastation:AutoAoe()
-local FlameCrash = Ability:Add(227322, true, true)
+local AbyssalStrike = Ability:Add(207550, true, true)
 local Fracture = Ability:Add(263642, false, true)
 Fracture.cooldown_duration = 4.5
 Fracture.hasted_cooldown = true
 Fracture.requires_charge = true
 local SpiritBomb = Ability:Add(247454, false, true)
-SpiritBomb.pain_cost = 30
+SpiritBomb.fury_cost = 30
 SpiritBomb:AutoAoe(true)
 local QuickenedSigils = Ability:Add(209281, true, true)
 ------ Procs
@@ -1087,9 +1066,6 @@ function Azerite:Update()
 	for pid in next, self.essences do
 		self.essences[pid] = nil
 	end
-	if UnitEffectiveLevel('player') < 110 then
-		return -- disable all Azerite/Essences for players scaled under 110
-	end
 	for _, loc in next, self.locations do
 		if GetInventoryItemID('player', loc:GetEquipmentSlot()) and C_AzeriteEmpoweredItem.IsAzeriteEmpoweredItem(loc) then
 			for _, slot in next, C_AzeriteEmpoweredItem.GetAllTierInfo(loc) do
@@ -1147,14 +1123,6 @@ function Player:FuryDeficit()
 	return self.fury_max - self.fury
 end
 
-function Player:Pain()
-	return self.pain
-end
-
-function Player:PainDeficit()
-	return self.pain_max - self.pain
-end
-
 function Player:UnderAttack()
 	return (Player.time - self.last_swing_taken) < 3
 end
@@ -1206,7 +1174,6 @@ end
 
 function Player:UpdateAbilities()
 	self.fury_max = UnitPowerMax('player', 17)
-	self.pain_max = UnitPowerMax('player', 18)
 
 	local _, ability, spellId
 
@@ -1231,7 +1198,6 @@ function Player:UpdateAbilities()
 	end
 
 	ImmolationAura.damage.known = ImmolationAura.known
-	ImmolationAuraV.damage.known = ImmolationAuraV.known
 	SigilOfFlame.dot.known = SigilOfFlame.known
 	if DemonBlades.known then
 		DemonsBite.known = false
@@ -1788,8 +1754,8 @@ actions.brand+=/sigil_of_flame,if=dot.fiery_brand.ticking
 		UseCooldown(FieryBrand)
 	end
 	if FieryBrand:Ticking() then
-		if ImmolationAuraV:Usable() then
-			return ImmolationAuraV
+		if ImmolationAura:Usable() then
+			return ImmolationAura
 		end
 		if FelDevastation:Usable() then
 			UseCooldown(FelDevastation)
@@ -1877,19 +1843,19 @@ end
 
 APL[SPEC.VENGEANCE].normal = function(self)
 --[[
-actions.normal=infernal_strike,if=(!talent.flame_crash.enabled|(dot.sigil_of_flame.remains<3&!action.infernal_strike.sigil_placed))
+actions.normal=infernal_strike,if=(!talent.abyssal_strike.enabled|(dot.sigil_of_flame.remains<3&!action.infernal_strike.sigil_placed))
 actions.normal+=/spirit_bomb,if=((buff.metamorphosis.up&soul_fragments>=3)|soul_fragments>=4)
 actions.normal+=/soul_cleave,if=(!talent.spirit_bomb.enabled&((buff.metamorphosis.up&soul_fragments>=3)|soul_fragments>=4))
 actions.normal+=/soul_cleave,if=talent.spirit_bomb.enabled&soul_fragments=0
-actions.normal+=/immolation_aura,if=pain<=90
-actions.normal+=/felblade,if=pain<=70
+actions.normal+=/immolation_aura,if=fury<=90
+actions.normal+=/felblade,if=fury<=70
 actions.normal+=/fracture,if=soul_fragments<=3
 actions.normal+=/fel_devastation
 actions.normal+=/sigil_of_flame
 actions.normal+=/shear
 actions.normal+=/throw_glaive
 ]]
-	if InfernalStrike:Usable() and (not FlameCrash.known or (SigilOfFlame.dot:Remains() < (SigilOfFlame:Duration() + 1) and not SigilOfFlame:Placed())) then
+	if InfernalStrike:Usable() and (not AbyssalStrike.known or (SigilOfFlame.dot:Remains() < (SigilOfFlame:Duration() + 1) and not SigilOfFlame:Placed())) then
 		UseCooldown(InfernalStrike)
 	end
 	if SpiritBomb:Usable() and Player.soul_fragments >= (Player.meta_active and 3 or 4) then
@@ -1901,10 +1867,10 @@ actions.normal+=/throw_glaive
 	) then
 		return SoulCleave
 	end
-	if ImmolationAuraV:Usable() and Player:Pain() <= 90 then
-		return ImmolationAuraV
+	if ImmolationAura:Usable() and Player:Fury() <= 90 then
+		return ImmolationAura
 	end
-	if Felblade:Usable() and Player:Pain() <= 70 then
+	if Felblade:Usable() and Player:Fury() <= 70 then
 		return Felblade
 	end
 	if Fracture:Usable() and Player.soul_fragments <= 3 then
@@ -2199,7 +2165,6 @@ function UI:UpdateCombat()
 	Player.haste_factor = 1 / (1 + UnitSpellHaste('player') / 100)
 	Player.gcd = 1.5 * Player.haste_factor
 	Player.fury = UnitPower('player', 17)
-	Player.pain = UnitPower('player', 18)
 	Player.health = UnitHealth('player')
 	Player.health_max = UnitHealthMax('player')
 	if Player.spec == SPEC.HAVOC then
@@ -2273,8 +2238,8 @@ function events:ADDON_LOADED(name)
 			print('It looks like this is your first time running ' .. name .. ', why don\'t you take some time to familiarize yourself with the commands?')
 			print('Type |cFFFFD000' .. SLASH_Lasik1 .. '|r for a list of commands.')
 		end
-		if UnitLevel('player') < 110 then
-			print('[|cFFFFD000Warning|r] ' .. name .. ' is not designed for players under level 110, and almost certainly will not operate properly!')
+		if UnitLevel('player') < 10 then
+			print('[|cFFFFD000Warning|r] ' .. name .. ' is not designed for players under level 10, and almost certainly will not operate properly!')
 		end
 		InitOpts()
 		Azerite:Init()
@@ -2357,7 +2322,7 @@ local function CombatEvent(timeStamp, eventType, srcGUID, dstGUID, spellId, spel
 				lasikPreviousPanel.icon:SetTexture(ability.icon)
 				lasikPreviousPanel:Show()
 			end
-			if ability == InfernalStrike and FlameCrash.known then
+			if ability == InfernalStrike and AbyssalStrike.known then
 				SigilOfFlame.last_used = Player.time + 1
 			end
 		end
@@ -2390,7 +2355,7 @@ local function CombatEvent(timeStamp, eventType, srcGUID, dstGUID, spellId, spel
 		if Opt.previous and Opt.miss_effect and eventType == 'SPELL_MISSED' and lasikPanel:IsVisible() and ability == lasikPreviousPanel.ability then
 			lasikPreviousPanel.border:SetTexture('Interface\\AddOns\\Lasik\\misseffect.blp')
 		end
-		if ability == InfernalStrike and FlameCrash.known then
+		if ability == InfernalStrike and AbyssalStrike.known then
 			SigilOfFlame.last_used = Player.time
 		end
 	end
@@ -2513,7 +2478,7 @@ function events:SPELL_UPDATE_COOLDOWN()
 end
 
 function events:UNIT_POWER_UPDATE(srcName, powerType)
-	if srcName == 'player' and (powerType == 'FURY' or powerType == 'PAIN') then
+	if srcName == 'player' and powerType == 'FURY' then
 		UI:UpdateCombatWithin(0.05)
 	end
 end
