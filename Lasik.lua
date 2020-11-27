@@ -143,9 +143,6 @@ local Target = {
 	estimated_range = 30,
 }
 
--- Azerite trait API access
-local Azerite = {}
-
 local lasikPanel = CreateFrame('Frame', 'lasikPanel', UIParent)
 lasikPanel:SetPoint('CENTER', 0, -169)
 lasikPanel:SetFrameStrata('BACKGROUND')
@@ -619,10 +616,6 @@ function Ability:Previous(n)
 	return Player.previous_gcd[i] == self
 end
 
-function Ability:AzeriteRank()
-	return Azerite.traits[self.spellId] or 0
-end
-
 function Ability:AutoAoe(removeUnaffected, trigger)
 	self.auto_aoe = {
 		remove = removeUnaffected,
@@ -867,97 +860,8 @@ SpiritBomb:AutoAoe(true)
 local QuickenedSigils = Ability:Add(209281, true, true)
 ------ Procs
 
--- Heart of Azeroth
----- Azerite Traits
-local ChaoticTransformation = Ability:Add(288754, false, true)
-local EyesOfRage = Ability:Add(278500, false, true)
-local FuriousGaze = Ability:Add(273231, true, true, 273232)
-FuriousGaze.buff_duration = 12
-local RevolvingBlades = Ability:Add(279581, false, true, 279584)
-RevolvingBlades.buff_duration = 12
----- Major Essences
-local BloodOfTheEnemy = Ability:Add({297108, 298273, 298277} , false, true)
-BloodOfTheEnemy.buff_duration = 10
-BloodOfTheEnemy.cooldown_duration = 120
-BloodOfTheEnemy.essence_id = 23
-BloodOfTheEnemy.essence_major = true
-local ConcentratedFlame = Ability:Add({295373, 299349, 299353}, true, true, 295378)
-ConcentratedFlame.buff_duration = 180
-ConcentratedFlame.cooldown_duration = 30
-ConcentratedFlame.requires_charge = true
-ConcentratedFlame.essence_id = 12
-ConcentratedFlame.essence_major = true
-ConcentratedFlame:SetVelocity(40)
-ConcentratedFlame.dot = Ability:Add(295368, false, true)
-ConcentratedFlame.dot.buff_duration = 6
-ConcentratedFlame.dot.tick_interval = 2
-ConcentratedFlame.dot.essence_id = 12
-ConcentratedFlame.dot.essence_major = true
-local GuardianOfAzeroth = Ability:Add({295840, 299355, 299358}, false, true)
-GuardianOfAzeroth.cooldown_duration = 180
-GuardianOfAzeroth.essence_id = 14
-GuardianOfAzeroth.essence_major = true
-local FocusedAzeriteBeam = Ability:Add({295258, 299336, 299338}, false, true)
-FocusedAzeriteBeam.cooldown_duration = 90
-FocusedAzeriteBeam.essence_id = 5
-FocusedAzeriteBeam.essence_major = true
-local MemoryOfLucidDreams = Ability:Add({298357, 299372, 299374}, true, true)
-MemoryOfLucidDreams.buff_duration = 15
-MemoryOfLucidDreams.cooldown_duration = 120
-MemoryOfLucidDreams.essence_id = 27
-MemoryOfLucidDreams.essence_major = true
-local PurifyingBlast = Ability:Add({295337, 299345, 299347}, false, true, 295338)
-PurifyingBlast.cooldown_duration = 60
-PurifyingBlast.essence_id = 6
-PurifyingBlast.essence_major = true
-PurifyingBlast:AutoAoe(true)
-local ReapingFlames = Ability:Add({310690, 311194, 311195}, false, true)
-ReapingFlames.cooldown_duration = 45
-ReapingFlames.essence_id = 35
-ReapingFlames.essence_major = true
-local RippleInSpace = Ability:Add({302731, 302982, 302983}, true, true)
-RippleInSpace.buff_duration = 2
-RippleInSpace.cooldown_duration = 60
-RippleInSpace.essence_id = 15
-RippleInSpace.essence_major = true
-local TheUnboundForce = Ability:Add({298452, 299376,299378}, false, true)
-TheUnboundForce.cooldown_duration = 45
-TheUnboundForce.essence_id = 28
-TheUnboundForce.essence_major = true
-local VisionOfPerfection = Ability:Add({296325, 299368, 299370}, true, true, 303345)
-VisionOfPerfection.buff_duration = 10
-VisionOfPerfection.essence_id = 22
-VisionOfPerfection.essence_major = true
-local WorldveinResonance = Ability:Add({295186, 298628, 299334}, true, true)
-WorldveinResonance.cooldown_duration = 60
-WorldveinResonance.essence_id = 4
-WorldveinResonance.essence_major = true
----- Minor Essences
-local AncientFlame = Ability:Add(295367, false, true)
-AncientFlame.buff_duration = 10
-AncientFlame.essence_id = 12
-local CondensedLifeForce = Ability:Add(295367, false, true)
-CondensedLifeForce.essence_id = 14
-local FocusedEnergy = Ability:Add(295248, true, true)
-FocusedEnergy.buff_duration = 4
-FocusedEnergy.essence_id = 5
-local Lifeblood = Ability:Add(295137, true, true)
-Lifeblood.essence_id = 4
-local LucidDreams = Ability:Add(298343, true, true)
-LucidDreams.buff_duration = 8
-LucidDreams.essence_id = 27
-local PurificationProtocol = Ability:Add(295305, false, true)
-PurificationProtocol.essence_id = 6
-PurificationProtocol:AutoAoe()
-local RealityShift = Ability:Add(302952, true, true)
-RealityShift.buff_duration = 20
-RealityShift.cooldown_duration = 30
-RealityShift.essence_id = 15
-local RecklessForce = Ability:Add(302932, true, true)
-RecklessForce.buff_duration = 3
-RecklessForce.essence_id = 28
-local StriveForPerfection = Ability:Add(299369, true, true)
-StriveForPerfection.essence_id = 22
+-- Covenant spells
+
 -- Racials
 local ArcaneTorrent = Ability:Add(25046, true, false) -- Blood Elf
 local Shadowmeld = Ability:Add(58984, true, true) -- Night Elf
@@ -1044,63 +948,6 @@ local Trinket1 = InventoryItem:Add(0)
 local Trinket2 = InventoryItem:Add(0)
 -- End Inventory Items
 
--- Start Azerite Trait API
-
-Azerite.equip_slots = { 1, 3, 5 } -- Head, Shoulder, Chest
-
-function Azerite:Init()
-	self.locations = {}
-	self.traits = {}
-	self.essences = {}
-	local i
-	for i = 1, #self.equip_slots do
-		self.locations[i] = ItemLocation:CreateFromEquipmentSlot(self.equip_slots[i])
-	end
-end
-
-function Azerite:Update()
-	local _, loc, slot, pid, pinfo
-	for pid in next, self.traits do
-		self.traits[pid] = nil
-	end
-	for pid in next, self.essences do
-		self.essences[pid] = nil
-	end
-	for _, loc in next, self.locations do
-		if GetInventoryItemID('player', loc:GetEquipmentSlot()) and C_AzeriteEmpoweredItem.IsAzeriteEmpoweredItem(loc) then
-			for _, slot in next, C_AzeriteEmpoweredItem.GetAllTierInfo(loc) do
-				if slot.azeritePowerIDs then
-					for _, pid in next, slot.azeritePowerIDs do
-						if C_AzeriteEmpoweredItem.IsPowerSelected(loc, pid) then
-							self.traits[pid] = 1 + (self.traits[pid] or 0)
-							pinfo = C_AzeriteEmpoweredItem.GetPowerInfo(pid)
-							if pinfo and pinfo.spellID then
-								--print('Azerite found:', pinfo.azeritePowerID, GetSpellInfo(pinfo.spellID))
-								self.traits[pinfo.spellID] = self.traits[pid]
-							end
-						end
-					end
-				end
-			end
-		end
-	end
-	for _, loc in next, C_AzeriteEssence.GetMilestones() or {} do
-		if loc.slot then
-			pid = C_AzeriteEssence.GetMilestoneEssence(loc.ID)
-			if pid then
-				pinfo = C_AzeriteEssence.GetEssenceInfo(pid)
-				self.essences[pid] = {
-					id = pid,
-					rank = pinfo.rank,
-					major = loc.slot == 0,
-				}
-			end
-		end
-	end
-end
-
--- End Azerite Trait API
-
 -- Start Player API
 
 function Player:Health()
@@ -1181,19 +1028,13 @@ function Player:UpdateAbilities()
 		ability.known = false
 		for _, spellId in next, ability.spellIds do
 			ability.spellId, ability.name, _, ability.icon = spellId, GetSpellInfo(spellId)
-			if IsPlayerSpell(spellId) or Azerite.traits[spellId] then
+			if IsPlayerSpell(spellId) then
 				ability.known = true
 				break
 			end
 		end
 		if C_LevelLink.IsSpellLocked(ability.spellId) then
 			ability.known = false -- spell is locked, do not mark as known
-		elseif ability.essence_id and Azerite.essences[ability.essence_id] then
-			if ability.essence_major then
-				ability.known = Azerite.essences[ability.essence_id].major
-			else
-				ability.known = true
-			end
 		end
 	end
 
@@ -1312,13 +1153,6 @@ end
 
 -- Start Ability Modifications
 
-function ConcentratedFlame.dot:Remains()
-	if ConcentratedFlame:Traveling() then
-		return self:Duration()
-	end
-	return Ability.Remains(self)
-end
-
 function ChaosNova:FuryCost()
 	if UnleashedPower.known then
 		return 0
@@ -1414,7 +1248,7 @@ actions.precombat+=/food
 # Snapshot raid buffed stats before combat begins and pre-potting is done.
 actions.precombat+=/snapshot_stats
 actions.precombat+=/potion
-actions.precombat+=/metamorphosis,if=!azerite.chaotic_transformation.enabled
+actions.precombat+=/metamorphosis
 actions.precombat+=/use_item,name=azsharas_font_of_power
 ]]
 		if Opt.pot and not Player:InArenaOrBattleground() then
@@ -1425,7 +1259,7 @@ actions.precombat+=/use_item,name=azsharas_font_of_power
 				UseCooldown(PotionOfUnbridledFury)
 			end
 		end
-		if Player.use_meta and not ChaoticTransformation.known and Metamorphosis:Usable() then
+		if Player.use_meta and Metamorphosis:Usable() then
 			UseCooldown(Metamorphosis)
 		end
 	end
@@ -1440,7 +1274,7 @@ actions+=/variable,name=waiting_for_dark_slash,value=talent.dark_slash.enabled&!
 actions+=/variable,name=waiting_for_momentum,value=talent.momentum.enabled&!buff.momentum.up
 actions+=/disrupt
 actions+=/call_action_list,name=cooldown,if=gcd.remains=0
-actions+=/pick_up_fragment,if=fury.deficit>=35&(!azerite.eyes_of_rage.enabled|cooldown.eye_beam.remains>1.4)
+actions+=/pick_up_fragment,if=fury.deficit>=35&
 actions+=/call_action_list,name=dark_slash,if=talent.dark_slash.enabled&(variable.waiting_for_dark_slash|debuff.dark_slash.up)
 actions+=/run_action_list,name=demonic,if=talent.demonic.enabled
 actions+=/run_action_list,name=normal
@@ -1455,7 +1289,7 @@ actions+=/run_action_list,name=normal
 	local apl
 	apl = self:cooldown()
 	if apl then return apl end
-	-- Player.pick_up_fragment = Player:FuryDeficit() >= 35 and (not EyesOfRage.known or EyeBeam:Cooldown() > 1.4)
+	-- Player.pick_up_fragment = Player:FuryDeficit() >= 35
 	if DarkSlash.known and (Player.waiting_for_dark_slash or DarkSlash:Up()) then
 		apl = self:dark_slash()
 		if apl then return apl end
@@ -1469,7 +1303,7 @@ end
 APL[SPEC.HAVOC].cooldown = function(self)
 --[[
 actions.cooldown=metamorphosis,if=!(talent.demonic.enabled|variable.pooling_for_meta|variable.waiting_for_nemesis)|target.time_to_die<25
-actions.cooldown+=/metamorphosis,if=talent.demonic.enabled&(!azerite.chaotic_transformation.enabled|(cooldown.eye_beam.remains>20&(!variable.blade_dance|cooldown.blade_dance.remains>gcd.max)))
+actions.cooldown+=/metamorphosis,if=talent.demonic.enabled
 actions.cooldown+=/nemesis,target_if=min:target.time_to_die,if=raid_event.adds.exists&debuff.nemesis.down&(active_enemies>desired_targets|raid_event.adds.in>60)
 actions.cooldown+=/nemesis,if=!raid_event.adds.exists
 actions.cooldown+=/potion,if=buff.metamorphosis.remains>25|target.time_to_die<60
@@ -1478,11 +1312,10 @@ actions.cooldown+=/use_item,effect_name=cyclotronic_blast,if=buff.metamorphosis.
 actions.cooldown+=/use_item,name=ashvanes_razor_coral,if=debuff.razor_coral_debuff.down|(debuff.conductive_ink_debuff.up|buff.metamorphosis.remains>20)&target.health.pct<31|target.time_to_die<20
 actions.cooldown+=/use_item,name=azsharas_font_of_power,if=cooldown.metamorphosis.remains<10|cooldown.metamorphosis.remains>60
 # Default fallback for usable items.
-actions.cooldown+=/use_items,if=(azerite.furious_gaze.enabled&(cooldown.eye_beam.ready|buff.furious_gaze.remains>6))|(!azerite.furious_gaze.enabled&buff.metamorphosis.up)|target.time_to_die<25
-actions.cooldown+=/call_action_list,name=essences
+actions.cooldown+=/use_items,if=buff.metamorphosis.up|target.time_to_die<25
 ]]
 	if Player.use_meta and Metamorphosis:Usable() then
-		if (Target.boss or Player.enemies > 1 or Target.timeToDie > (Metamorphosis:Remains() + 6)) and (not ChaoticTransformation.known or not EyeBeam:Ready(6)) and (
+		if (Target.boss or Player.enemies > 1 or Target.timeToDie > (Metamorphosis:Remains() + 6)) and (
 			(Target.boss and Target.timeToDie < 25) or
 			(not (Demonic.known or Player.pooling_for_meta or Player.waiting_for_nemesis)) or
 			(Demonic.known and (not ChaoticTransformation.known or (not EyeBeam:Ready(20) and (not Player.blade_dance or BladeDance:Cooldown() > Player.gcd))))
@@ -1496,14 +1329,13 @@ actions.cooldown+=/call_action_list,name=essences
 	if Opt.pot and Target.boss and PotionOfUnbridledFury:Usable() and (Player.meta_remains > 25 or Target.timeToDie < 60) then
 		return UseCooldown(PotionOfUnbridledFury)
 	end
-	if Opt.trinket and ((FuriousGaze.known and (EyeBeam:Ready() or FuriousGaze:Remains() > 6)) or (not FuriousGaze.known and Player.meta_active) or (Target.boss and Target.timeToDie < 25)) then
+	if Opt.trinket and (Player.meta_active or (Target.boss and Target.timeToDie < 25)) then
 		if Trinket1:Usable() then
 			return UseCooldown(Trinket1)
 		elseif Trinket2:Usable() then
 			return UseCooldown(Trinket2)
 		end
 	end
-	return self:essences()
 end
 
 
@@ -1529,9 +1361,8 @@ APL[SPEC.HAVOC].demonic = function(self)
 actions.demonic=death_sweep,if=variable.blade_dance
 actions.demonic+=/eye_beam,if=raid_event.adds.up|raid_event.adds.in>25
 actions.demonic+=/fel_barrage,if=((!cooldown.eye_beam.up|buff.metamorphosis.up)&raid_event.adds.in>30)|active_enemies>desired_targets
-actions.demonic+=/blade_dance,if=variable.blade_dance&(!cooldown.metamorphosis.ready|azerite.chaotic_transformation.enabled)&(cooldown.eye_beam.remains>(5-azerite.revolving_blades.rank*3)|(raid_event.adds.in>cooldown&raid_event.adds.in<25))
+actions.demonic+=/blade_dance,if=variable.blade_dance&(!cooldown.metamorphosis.ready)&(cooldown.eye_beam.remains>5)|(raid_event.adds.in>cooldown&raid_event.adds.in<25))
 actions.demonic+=/immolation_aura
-actions.demonic+=/focused_azerite_beam,if=buff.furious_gaze.up
 actions.demonic+=/annihilation,if=!variable.pooling_for_blade_dance
 actions.demonic+=/felblade,if=fury.deficit>=40
 actions.demonic+=/chaos_strike,if=!variable.pooling_for_blade_dance&!variable.pooling_for_eye_beam
@@ -1551,14 +1382,11 @@ actions.demonic+=/throw_glaive,if=talent.demon_blades.enabled
 	if FelBarrage:Usable() and (EyeBeam:Ready() or Player.meta_active) then
 		return FelBarrage
 	end
-	if BladeDance:Usable() and Player.blade_dance and (not Player.use_meta or not Metamorphosis:Ready() or ChaoticTransformation.known) and EyeBeam:Cooldown() > (5 - RevolvingBlades:AzeriteRank() * 3) then
+	if BladeDance:Usable() and Player.blade_dance and (not Player.use_meta or not Metamorphosis:Ready()) and EyeBeam:Cooldown() > 5 then
 		return BladeDance
 	end
 	if ImmolationAura:Usable() and (Player.enemies > 1 or Target.timeToDie > 4) then
 		return ImmolationAura
-	end
-	if FuriousGaze.known and FocusedAzeriteBeam:Usable() and FuriousGaze:Up() then
-		UseCooldown(FocusedAzeriteBeam, true)
 	end
 	if Annihilation:Usable() and not Player.pooling_for_blade_dance then
 		return Annihilation
@@ -1580,51 +1408,6 @@ actions.demonic+=/throw_glaive,if=talent.demon_blades.enabled
 	end
 end
 
-APL[SPEC.HAVOC].essences = function(self)
---[[
-actions.essences=concentrated_flame,if=(!dot.concentrated_flame_burn.ticking&!action.concentrated_flame.in_flight|full_recharge_time<gcd.max)
-actions.essences+=/blood_of_the_enemy,if=buff.metamorphosis.up|target.time_to_die<=10
-actions.essences+=/guardian_of_azeroth,if=(buff.metamorphosis.up&cooldown.metamorphosis.ready)|buff.metamorphosis.remains>25|target.time_to_die<=30
-actions.essences+=/focused_azerite_beam,if=!azerite.furious_gaze.enabled&(spell_targets.blade_dance1>=2|raid_event.adds.in>60)
-actions.essences+=/purifying_blast,if=spell_targets.blade_dance1>=2|raid_event.adds.in>60
-actions.essences+=/the_unbound_force,if=buff.reckless_force.up|buff.reckless_force_counter.stack<10
-actions.essences+=/ripple_in_space
-actions.essences+=/worldvein_resonance,if=buff.metamorphosis.up
-actions.essences+=/memory_of_lucid_dreams,if=fury<40&buff.metamorphosis.up
-actions.essences+=/reaping_flames,if=target.health.pct>80|target.health.pct<=20|target.time_to_pct_20>30
-]]
-	if ConcentratedFlame:Usable() and (ConcentratedFlame.dot:Down() or ConcentratedFlame:Charges() > 1.8) then
-		return ConcentratedFlame
-	end
-	if BloodOfTheEnemy:Usable() and (Player.meta_active or Target.timeToDie <= 10) then
-		return UseCooldown(BloodOfTheEnemy)
-	end
-	if GuardianOfAzeroth:Usable() and ((Player.meta_active and Metamorphosis:Ready()) or Player.meta_remains > 25 or Target.timeToDie <= 30) then
-		return UseCooldown(GuardianOfAzeroth)
-	end
-	if not FuriousGaze.known and FocusedAzeriteBeam:Usable() then
-		return UseCooldown(FocusedAzeriteBeam, true)
-	end
-	if PurifyingBlast:Usable() then
-		return UseCooldown(PurifyingBlast)
-	end
-	if TheUnboundForce:Usable() and (RecklessForce:Up() or RecklessForce.counter:Stack() < 10) then
-		return UseCooldown(TheUnboundForce)
-	end
-	if RippleInSpace:Usable() then
-		return UseCooldown(RippleInSpace)
-	end
-	if WorldveinResonance:Usable() and Player.meta_active then
-		return UseCooldown(WorldveinResonance)
-	end
-	if MemoryOfLucidDreams:Usable() and Player:Fury() < 40 and Player.meta_active then
-		return UseCooldown(MemoryOfLucidDreams)
-	end
-	if ReapingFlames:Usable() then
-		return UseCooldown(ReapingFlames)
-	end
-end
-
 APL[SPEC.HAVOC].normal = function(self)
 --[[
 actions.normal=vengeful_retreat,if=talent.momentum.enabled&buff.prepared.down&time>1
@@ -1632,7 +1415,6 @@ actions.normal+=/fel_rush,if=(variable.waiting_for_momentum|talent.fel_mastery.e
 actions.normal+=/fel_barrage,if=!variable.waiting_for_momentum&(active_enemies>desired_targets|raid_event.adds.in>30)
 actions.normal+=/death_sweep,if=variable.blade_dance
 actions.normal+=/immolation_aura
-actions.normal+=/focused_azerite_beam,if=buff.furious_gaze.up
 actions.normal+=/eye_beam,if=active_enemies>1&(!raid_event.adds.exists|raid_event.adds.up)&!variable.waiting_for_momentum
 actions.normal+=/blade_dance,if=variable.blade_dance
 actions.normal+=/felblade,if=fury.deficit>=40
@@ -1661,9 +1443,6 @@ actions.normal+=/throw_glaive,if=talent.demon_blades.enabled
 	end
 	if ImmolationAura:Usable() and (Player.enemies > 1 or Target.timeToDie > 4) then
 		return ImmolationAura
-	end
-	if FuriousGaze.known and FocusedAzeriteBeam:Usable() and FuriousGaze:Up() then
-		UseCooldown(FocusedAzeriteBeam, true)
 	end
 	if EyeBeam:Usable() and Player.enemies > 1 and not Player.waiting_for_momentum then
 		return EyeBeam
@@ -1772,48 +1551,10 @@ end
 APL[SPEC.VENGEANCE].cooldowns = function(self)
 --[[
 actions.cooldowns=potion
-actions.cooldowns+=/concentrated_flame,if=(!dot.concentrated_flame_burn.ticking&!action.concentrated_flame.in_flight|full_recharge_time<gcd.max)
-actions.cooldowns+=/worldvein_resonance,if=buff.lifeblood.stack<3
-actions.cooldowns+=/memory_of_lucid_dreams
-# Default fallback for usable essences.
-actions.cooldowns+=/heart_essence
-actions.cooldowns+=/use_item,effect_name=cyclotronic_blast,if=buff.memory_of_lucid_dreams.down
-actions.cooldowns+=/use_item,name=ashvanes_razor_coral,if=debuff.razor_coral_debuff.down|debuff.conductive_ink_debuff.up&target.health.pct<31|target.time_to_die<20
-# Default fallback for usable items.
 actions.cooldowns+=/use_items
 ]]
 	if Opt.pot and Target.boss and PotionOfUnbridledFury:Usable() then
 		return UseCooldown(PotionOfUnbridledFury)
-	end
-	if ConcentratedFlame:Usable() and (ConcentratedFlame.dot:Down() or ConcentratedFlame:Charges() > 1.8) then
-		return ConcentratedFlame
-	end
-	if WorldveinResonance:Usable() and Lifeblood:Stack() < 3 then
-		return UseCooldown(WorldveinResonance)
-	end
-	if MemoryOfLucidDreams:Usable() then
-		return UseCooldown(MemoryOfLucidDreams)
-	end
-	if BloodOfTheEnemy:Usable() then
-		return UseCooldown(BloodOfTheEnemy)
-	end
-	if GuardianOfAzeroth:Usable() then
-		return UseCooldown(GuardianOfAzeroth)
-	end
-	if FocusedAzeriteBeam:Usable() then
-		return UseCooldown(FocusedAzeriteBeam, true)
-	end
-	if PurifyingBlast:Usable() then
-		return UseCooldown(PurifyingBlast)
-	end
-	if TheUnboundForce:Usable() and (RecklessForce:Up() or RecklessForce.counter:Stack() < 10) then
-		return UseCooldown(TheUnboundForce)
-	end
-	if RippleInSpace:Usable() then
-		return UseCooldown(RippleInSpace)
-	end
-	if ReapingFlames:Usable() then
-		return UseCooldown(ReapingFlames)
 	end
 	if Opt.trinket then
 		if Trinket1:Usable() then
@@ -1894,7 +1635,7 @@ APL.Interrupt = function(self)
 	if Disrupt:Usable() then
 		return Disrupt
 	end
-	if EyesOfRage.known and ChaosNova:Usable() and Player.enemies >= (UnleashedPower.known and 3 or 5) and not EyeBeam:Ready(4) then
+	if ChaosNova:Usable() and Player.enemies >= (UnleashedPower.known and 3 or 5) and not EyeBeam:Ready(4) then
 		return ChaosNova
 	end
 	if FelEruption:Usable() then
@@ -2242,7 +1983,6 @@ function events:ADDON_LOADED(name)
 			print('[|cFFFFD000Warning|r] ' .. name .. ' is not designed for players under level 10, and almost certainly will not operate properly!')
 		end
 		InitOpts()
-		Azerite:Init()
 		UI:UpdateDraggable()
 		UI:UpdateAlpha()
 		UI:UpdateScale()
@@ -2447,7 +2187,6 @@ function events:PLAYER_EQUIPMENT_CHANGED()
 			inventoryItems[i].can_use = false
 		end
 	end
-	Azerite:Update()
 	Player:UpdateAbilities()
 end
 
@@ -2496,11 +2235,6 @@ function events:UNIT_SPELLCAST_STOP(srcName)
 end
 
 function events:PLAYER_PVP_TALENT_UPDATE()
-	Player:UpdateAbilities()
-end
-
-function events:AZERITE_ESSENCE_UPDATE()
-	Azerite:Update()
 	Player:UpdateAbilities()
 end
 
