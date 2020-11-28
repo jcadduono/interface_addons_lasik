@@ -861,7 +861,7 @@ local QuickenedSigils = Ability:Add(209281, true, true)
 ------ Procs
 
 -- Covenant spells
-
+local ElysianDecree = Ability:Add(306830, false, true) -- Kyrian Class Ability
 -- Racials
 local ArcaneTorrent = Ability:Add(25046, true, false) -- Blood Elf
 local Shadowmeld = Ability:Add(58984, true, true) -- Night Elf
@@ -1205,6 +1205,7 @@ end
 SigilOfChains.Duration = SigilOfFlame.Duration
 SigilOfMisery.Duration = SigilOfFlame.Duration
 SigilOfSilence.Duration = SigilOfFlame.Duration
+ElysianDecree.Duration = SigilOfFlame.Duration
 
 function SigilOfFlame:Placed()
 	return (Player.time - self.last_used) < (self:Duration() + 0.5)
@@ -1212,6 +1213,7 @@ end
 SigilOfChains.Placed = SigilOfFlame.Placed
 SigilOfMisery.Placed = SigilOfFlame.Placed
 SigilOfSilence.Placed = SigilOfFlame.Placed
+ElysianDecree.Placed = SigilOfFlame.Placed
 
 -- End Ability Modifications
 
@@ -1555,6 +1557,9 @@ actions.cooldowns+=/use_items
 ]]
 	if Opt.pot and Target.boss and PotionOfUnbridledFury:Usable() then
 		return UseCooldown(PotionOfUnbridledFury)
+	end
+	if ElysianDecree:Usable() then
+		return UseCooldown(ElysianDecree)
 	end
 	if Opt.trinket then
 		if Trinket1:Usable() then
