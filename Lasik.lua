@@ -807,6 +807,7 @@ DemonSpikes.cooldown_duration = 20
 DemonSpikes.hasted_cooldown = true
 DemonSpikes.requires_charge = true
 local FelDevastation = Ability:Add(212084, false, true)
+FelDevastation.fury_cost = 50
 FelDevastation.buff_duration = 2
 FelDevastation.cooldown_duration = 60
 FelDevastation:AutoAoe()
@@ -860,8 +861,9 @@ SpiritBomb:AutoAoe(true)
 local QuickenedSigils = Ability:Add(209281, true, true)
 ------ Procs
 
--- Covenant spells
+-- Covenant abilities
 local ElysianDecree = Ability:Add(306830, false, true) -- Kyrian Class Ability
+ElysianDecree.cooldown_duration = 60
 -- Racials
 local ArcaneTorrent = Ability:Add(25046, true, false) -- Blood Elf
 local Shadowmeld = Ability:Add(58984, true, true) -- Night Elf
@@ -985,7 +987,9 @@ function Player:BloodlustActive()
 	local _, i, id
 	for i = 1, 40 do
 		_, _, _, _, _, _, _, _, _, id = UnitAura('player', i, 'HELPFUL')
-		if (
+		if not id then
+			return false
+		elseif (
 			id == 2825 or   -- Bloodlust (Horde Shaman)
 			id == 32182 or  -- Heroism (Alliance Shaman)
 			id == 80353 or  -- Time Warp (Mage)
@@ -1165,9 +1169,6 @@ function BladeDance:FuryCost()
 	if FirstBlood.known then
 		cost = cost - 20
 	end
-	if RevolvingBlades.known then
-		cost = cost - (3 * RevolvingBlades:Stack())
-	end
 	return max(0, cost)
 end
 DeathSweep.FuryCost = BladeDance.FuryCost
@@ -1320,7 +1321,7 @@ actions.cooldown+=/use_items,if=buff.metamorphosis.up|target.time_to_die<25
 		if (Target.boss or Player.enemies > 1 or Target.timeToDie > (Metamorphosis:Remains() + 6)) and (
 			(Target.boss and Target.timeToDie < 25) or
 			(not (Demonic.known or Player.pooling_for_meta or Player.waiting_for_nemesis)) or
-			(Demonic.known and (not ChaoticTransformation.known or (not EyeBeam:Ready(20) and (not Player.blade_dance or BladeDance:Cooldown() > Player.gcd))))
+			Demonic.known
 		) then
 			return UseCooldown(Metamorphosis)
 		end
@@ -1582,7 +1583,7 @@ actions.defensives+=/fiery_brand
 	if MetamorphosisV:Usable() then
 		UseExtra(MetamorphosisV)
 	end
-	if FieryBrand:Usable() then
+	if FieryBrand:Usable() and Player:UnderAttack() then
 		UseCooldown(FieryBrand)
 	end
 end
@@ -1607,7 +1608,7 @@ actions.normal+=/throw_glaive
 	if SpiritBomb:Usable() and Player.soul_fragments >= (Player.meta_active and 3 or 4) then
 		return SpiritBomb
 	end
-	if SoulCleave:Usable() and (
+	if SoulCleave:Usable() and (Player:Fury() >= 80 or not FelDevastation:Ready(2)) and (
 		(not SpiritBomb.known and Player.soul_fragments >= (Player.meta_active and 3 or 4)) or
 		(SpiritBomb.known and Player.soul_fragments == 0)
 	) then
@@ -1619,11 +1620,14 @@ actions.normal+=/throw_glaive
 	if Felblade:Usable() and Player:Fury() <= 70 then
 		return Felblade
 	end
+	if FelDevastation:Usable() then
+		UseCooldown(FelDevastation, true)
+	end
+	if SoulCleave:Usable() and Player:Fury() >= 80 then
+		return SoulCleave
+	end
 	if Fracture:Usable() and Player.soul_fragments <= 3 then
 		return Fracture
-	end
-	if FelDevastation:Usable() then
-		UseCooldown(FelDevastation)
 	end
 	if SigilOfFlame:Usable() and not SigilOfFlame:Placed() and SigilOfFlame.dot:Remains() < (SigilOfFlame:Duration() + 1) then
 		return SigilOfFlame
