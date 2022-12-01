@@ -482,7 +482,6 @@ function Ability:Add(spellId, buff, player, spellId2)
 		hasted_cooldown = false,
 		hasted_ticks = false,
 		known = false,
-		rank = 0,
 		fury_cost = 0,
 		cooldown_duration = 0,
 		buff_duration = 0,
@@ -1020,20 +1019,9 @@ local QuickenedSigils = Ability:Add(209281, true, true)
 local TheHunt = Ability:Add(370965, true, true)
 TheHunt.cooldown_duration = 90
 TheHunt.buff_duration = 30
--- Covenant abilities
-local EffusiveAnimaAccelerator = Ability:Add(352188, false, true, 353248) -- Kyrian (Forgelite Prime Mikanikos Soulbind)
-EffusiveAnimaAccelerator.buff_duration = 8
-EffusiveAnimaAccelerator.tick_inteval = 2
-EffusiveAnimaAccelerator:AutoAoe(false, 'apply')
-local ElysianDecree = Ability:Add(306830, false, true) -- Kyrian Class Ability
+local ElysianDecree = Ability:Add(306830, false, true)
 ElysianDecree.cooldown_duration = 60
-local SummonSteward = Ability:Add(324739, false, true) -- Kyrian
-SummonSteward.cooldown_duration = 300
--- Soulbind conduits
-
--- Legendary effects
-local Unity = Ability:Add(364824, true, true)
-Unity.bonus_id = 8120
+ElysianDecree.check_usable = true
 -- Racials
 
 -- PvP talents
@@ -1109,8 +1097,6 @@ local EternalAugmentRune = InventoryItem:Add(190384)
 EternalAugmentRune.buff = Ability:Add(367405, true, true)
 local EternalFlask = InventoryItem:Add(171280)
 EternalFlask.buff = Ability:Add(307166, true, true)
-local PhialOfSerenity = InventoryItem:Add(177278) -- Provided by Summon Steward
-PhialOfSerenity.max_charges = 3
 local PotionOfPhantomFire = InventoryItem:Add(171349)
 PotionOfPhantomFire.buff = Ability:Add(307495, true, true)
 local PotionOfSpectralAgility = InventoryItem:Add(171270)
@@ -1120,8 +1106,6 @@ SpectralFlaskOfPower.buff = Ability:Add(307185, true, true)
 -- Equipment
 local Trinket1 = InventoryItem:Add(0)
 local Trinket2 = InventoryItem:Add(0)
-Trinket.SoleahsSecretTechnique = InventoryItem:Add(190958)
-Trinket.SoleahsSecretTechnique.buff = Ability:Add(368512, true, true)
 -- End Inventory Items
 
 -- Start Player API
@@ -1216,7 +1200,6 @@ function Player:UpdateTime(timeStamp)
 end
 
 function Player:UpdateAbilities()
-	self.rescan_abilities = false
 	self.fury.max = UnitPowerMax('player', 17)
 
 	local node
@@ -1229,25 +1212,11 @@ function Player:UpdateAbilities()
 				break
 			end
 		end
-		if C_LevelLink.IsSpellLocked(ability.spellId) then
-			ability.known = false -- spell is locked, do not mark as known
-		end
-		if ability.bonus_id then -- used for checking enchants and Legendary crafted effects
+		if ability.bonus_id then -- used for checking enchants and crafted effects
 			ability.known = self:BonusIdEquipped(ability.bonus_id)
 		end
-		if ability.conduit_id then
-			node = C_Soulbinds.FindNodeIDActuallyInstalled(C_Soulbinds.GetActiveSoulbindID(), ability.conduit_id)
-			if node then
-				node = C_Soulbinds.GetNode(node)
-				if node then
-					if node.conduitID == 0 then
-						self.rescan_abilities = true -- rescan on next target, conduit data has not finished loading
-					else
-						ability.known = node.state == 3
-						ability.rank = node.conduitRank
-					end
-				end
-			end
+		if C_LevelLink.IsSpellLocked(ability.spellId) or (ability.check_usable and not IsUsableSpell(ability.spellId)) then
+			ability.known = false -- spell is locked, do not mark as known
 		end
 	end
 
@@ -1517,12 +1486,6 @@ local APL = {
 
 APL[SPEC.HAVOC].Main = function(self)
 	if Player:TimeInCombat() == 0 then
-		if Trinket.SoleahsSecretTechnique:Usable() and Trinket.SoleahsSecretTechnique.buff:Remains() < 300 and Player.group_size > 1 then
-			UseCooldown(Trinket.SoleahsSecretTechnique)
-		end
-		if SummonSteward:Usable() and PhialOfSerenity:Charges() < 1 then
-			UseCooldown(SummonSteward)
-		end
 		if not Player:InArenaOrBattleground() then
 			if EternalAugmentRune:Usable() and EternalAugmentRune.buff:Remains() < 300 then
 				UseCooldown(EternalAugmentRune)
@@ -1535,20 +1498,12 @@ APL[SPEC.HAVOC].Main = function(self)
 			end
 		end
 	else
-		if Trinket.SoleahsSecretTechnique:Usable() and Trinket.SoleahsSecretTechnique.buff:Remains() < 10 and Player.group_size > 1 then
-			UseExtra(Trinket.SoleahsSecretTechnique)
-		end
+
 	end
 end
 
 APL[SPEC.VENGEANCE].Main = function(self)
 	if Player:TimeInCombat() == 0 then
-		if Trinket.SoleahsSecretTechnique:Usable() and Trinket.SoleahsSecretTechnique.buff:Remains() < 300 and Player.group_size > 1 then
-			UseCooldown(Trinket.SoleahsSecretTechnique)
-		end
-		if SummonSteward:Usable() and PhialOfSerenity:Charges() < 1 then
-			UseCooldown(SummonSteward)
-		end
 		if not Player:InArenaOrBattleground() then
 			if EternalAugmentRune:Usable() and EternalAugmentRune.buff:Remains() < 300 then
 				UseCooldown(EternalAugmentRune)
@@ -1561,15 +1516,10 @@ APL[SPEC.VENGEANCE].Main = function(self)
 			end
 		end
 	else
-		if Trinket.SoleahsSecretTechnique:Usable() and Trinket.SoleahsSecretTechnique.buff:Remains() < 10 and Player.group_size > 1 then
-			UseExtra(Trinket.SoleahsSecretTechnique)
-		end
+
 	end
-	local apl
-	apl = self:defensives()
-	if apl then return apl end
-	apl = self:cooldowns()
-	if apl then return apl end
+	self:defensives()
+	self:cooldowns()
 	return self:normal()
 end
 
@@ -1618,12 +1568,6 @@ actions.defensives+=/fiery_brand
 	if FelDevastation:Usable() and not Player.meta_active then
 		return UseCooldown(FelDevastation)
 	end
-	if FieryBrand:Usable() then
-		return UseCooldown(FieryBrand)
-	end
-	if ChaosFragments.known and ChaosNova:Usable() and Player.enemies >= 3 and Player.soul_fragments <= 1 and Target.stunnable then
-		return UseCooldown(ChaosNova)
-	end
 end
 
 APL[SPEC.VENGEANCE].normal = function(self)
@@ -1639,13 +1583,17 @@ actions.normal+=/sigil_of_flame,if=!(covenant.kyrian.enabled&runeforge.razelikhs
 actions.normal+=/shear
 actions.normal+=/throw_glaive
 ]]
+	self.spirit_bomb_condition = SpiritBomb.known and Player.soul_fragments >= (4 - (Player.meta_active and Fracture.known and 1 or 0))
+	if FieryBrand:Usable() then
+		UseCooldown(FieryBrand)
+	end
 	if InfernalStrike:Usable() and InfernalStrike:ChargesFractional() >= 1.5 then
 		UseExtra(InfernalStrike)
 	end
-	if SpiritBomb:Usable() and (
-		Player.soul_fragments >= 4 or
-		(Player.meta_active and Fracture.known and Player.soul_fragments >= 3)
-	) then
+	if SigilOfFlame:Usable() and self.spirit_bomb_condition and Player.health.pct >= 50 then
+		return SigilOfFlame
+	end
+	if SpiritBomb:Usable() and self.spirit_bomb_condition then
 		return SpiritBomb
 	end
 	if SoulCleave:Usable() and (not SpiritBomb.known or (Player.soul_fragments == 0 and not (Fracture:Previous() or SigilOfFlame:Placed() or ElysianDecree:Placed()))) and (
@@ -1666,6 +1614,9 @@ actions.normal+=/throw_glaive
 	end
 	if SigilOfFlame:Usable() then
 		return SigilOfFlame
+	end
+	if ChaosFragments.known and ChaosNova:Usable() and Player.enemies >= 3 and Player.soul_fragments <= 1 and Target.stunnable then
+		UseCooldown(ChaosNova)
 	end
 	if Shear:Usable() then
 		return Shear
@@ -2169,9 +2120,6 @@ end
 
 function events:PLAYER_TARGET_CHANGED()
 	Target:Update()
-	if Player.rescan_abilities then
-		Player:UpdateAbilities()
-	end
 end
 
 function events:UNIT_FACTION(unitId)
