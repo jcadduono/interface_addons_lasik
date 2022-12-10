@@ -203,6 +203,10 @@ lasikPanel:SetPoint('CENTER', 0, -169)
 lasikPanel:SetFrameStrata('BACKGROUND')
 lasikPanel:SetSize(64, 64)
 lasikPanel:SetMovable(true)
+lasikPanel:SetUserPlaced(true)
+lasikPanel:RegisterForDrag('LeftButton')
+lasikPanel:SetScript('OnDragStart', lasikPanel.StartMoving)
+lasikPanel:SetScript('OnDragStop', lasikPanel.StopMovingOrSizing)
 lasikPanel:Hide()
 lasikPanel.icon = lasikPanel:CreateTexture(nil, 'BACKGROUND')
 lasikPanel.icon:SetAllPoints(lasikPanel)
@@ -248,11 +252,12 @@ lasikPanel.button:RegisterForClicks('LeftButtonDown', 'RightButtonDown', 'Middle
 local lasikPreviousPanel = CreateFrame('Frame', 'lasikPreviousPanel', UIParent)
 lasikPreviousPanel:SetFrameStrata('BACKGROUND')
 lasikPreviousPanel:SetSize(64, 64)
-lasikPreviousPanel:Hide()
+lasikPreviousPanel:SetMovable(true)
+lasikPreviousPanel:SetUserPlaced(true)
 lasikPreviousPanel:RegisterForDrag('LeftButton')
 lasikPreviousPanel:SetScript('OnDragStart', lasikPreviousPanel.StartMoving)
 lasikPreviousPanel:SetScript('OnDragStop', lasikPreviousPanel.StopMovingOrSizing)
-lasikPreviousPanel:SetMovable(true)
+lasikPreviousPanel:Hide()
 lasikPreviousPanel.icon = lasikPreviousPanel:CreateTexture(nil, 'BACKGROUND')
 lasikPreviousPanel.icon:SetAllPoints(lasikPreviousPanel)
 lasikPreviousPanel.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
@@ -260,13 +265,14 @@ lasikPreviousPanel.border = lasikPreviousPanel:CreateTexture(nil, 'ARTWORK')
 lasikPreviousPanel.border:SetAllPoints(lasikPreviousPanel)
 lasikPreviousPanel.border:SetTexture(ADDON_PATH .. 'border.blp')
 local lasikCooldownPanel = CreateFrame('Frame', 'lasikCooldownPanel', UIParent)
-lasikCooldownPanel:SetSize(64, 64)
 lasikCooldownPanel:SetFrameStrata('BACKGROUND')
-lasikCooldownPanel:Hide()
+lasikCooldownPanel:SetSize(64, 64)
+lasikCooldownPanel:SetMovable(true)
+lasikCooldownPanel:SetUserPlaced(true)
 lasikCooldownPanel:RegisterForDrag('LeftButton')
 lasikCooldownPanel:SetScript('OnDragStart', lasikCooldownPanel.StartMoving)
 lasikCooldownPanel:SetScript('OnDragStop', lasikCooldownPanel.StopMovingOrSizing)
-lasikCooldownPanel:SetMovable(true)
+lasikCooldownPanel:Hide()
 lasikCooldownPanel.icon = lasikCooldownPanel:CreateTexture(nil, 'BACKGROUND')
 lasikCooldownPanel.icon:SetAllPoints(lasikCooldownPanel)
 lasikCooldownPanel.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
@@ -289,11 +295,12 @@ lasikCooldownPanel.text:SetJustifyV('CENTER')
 local lasikInterruptPanel = CreateFrame('Frame', 'lasikInterruptPanel', UIParent)
 lasikInterruptPanel:SetFrameStrata('BACKGROUND')
 lasikInterruptPanel:SetSize(64, 64)
-lasikInterruptPanel:Hide()
+lasikInterruptPanel:SetMovable(true)
+lasikInterruptPanel:SetUserPlaced(true)
 lasikInterruptPanel:RegisterForDrag('LeftButton')
 lasikInterruptPanel:SetScript('OnDragStart', lasikInterruptPanel.StartMoving)
 lasikInterruptPanel:SetScript('OnDragStop', lasikInterruptPanel.StopMovingOrSizing)
-lasikInterruptPanel:SetMovable(true)
+lasikInterruptPanel:Hide()
 lasikInterruptPanel.icon = lasikInterruptPanel:CreateTexture(nil, 'BACKGROUND')
 lasikInterruptPanel.icon:SetAllPoints(lasikInterruptPanel)
 lasikInterruptPanel.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
@@ -307,11 +314,12 @@ lasikInterruptPanel.swipe:SetDrawEdge(false)
 local lasikExtraPanel = CreateFrame('Frame', 'lasikExtraPanel', UIParent)
 lasikExtraPanel:SetFrameStrata('BACKGROUND')
 lasikExtraPanel:SetSize(64, 64)
-lasikExtraPanel:Hide()
+lasikExtraPanel:SetMovable(true)
+lasikExtraPanel:SetUserPlaced(true)
 lasikExtraPanel:RegisterForDrag('LeftButton')
 lasikExtraPanel:SetScript('OnDragStart', lasikExtraPanel.StartMoving)
 lasikExtraPanel:SetScript('OnDragStop', lasikExtraPanel.StopMovingOrSizing)
-lasikExtraPanel:SetMovable(true)
+lasikExtraPanel:Hide()
 lasikExtraPanel.icon = lasikExtraPanel:CreateTexture(nil, 'BACKGROUND')
 lasikExtraPanel.icon:SetAllPoints(lasikExtraPanel)
 lasikExtraPanel.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
@@ -961,11 +969,14 @@ local TrailOfRuin = Ability:Add(258881, false, true, 258883)
 TrailOfRuin.buff_duration = 4
 TrailOfRuin.tick_interval = 1
 local UnleashedPower = Ability:Add(206477, false, true)
+local CalcifiedSpikes = Ability:Add(389720, true, true, 391171)
+CalcifiedSpikes.buff_duration = 10
 local DemonSpikes = Ability:Add(203720, true, true, 203819)
 DemonSpikes.buff_duration = 6
 DemonSpikes.cooldown_duration = 20
 DemonSpikes.hasted_cooldown = true
 DemonSpikes.requires_charge = true
+DemonSpikes.triggers_gcd = false
 local FelDevastation = Ability:Add(212084, false, true)
 FelDevastation.fury_cost = 50
 FelDevastation.buff_duration = 2
@@ -1015,6 +1026,10 @@ Fracture.requires_charge = true
 local SpiritBomb = Ability:Add(247454, false, true)
 SpiritBomb.fury_cost = 40
 SpiritBomb:AutoAoe(true)
+local SoulCarver = Ability:Add(207407, false, true)
+SoulCarver.cooldown_duration = 60
+SoulCarver.buff_duration = 3
+SoulCarver.tick_interval = 1
 local QuickenedSigils = Ability:Add(209281, true, true)
 local TheHunt = Ability:Add(370965, true, true)
 TheHunt.cooldown_duration = 90
@@ -1022,6 +1037,9 @@ TheHunt.buff_duration = 30
 local ElysianDecree = Ability:Add(306830, false, true)
 ElysianDecree.cooldown_duration = 60
 ElysianDecree.check_usable = true
+local Frailty = Ability:Add(389958, false, true, 247456)
+Frailty.buff_duration = 6
+local Soulcrush = Ability:Add(389985, false, true)
 -- Racials
 
 -- PvP talents
@@ -1126,6 +1144,9 @@ function Player:TimeInCombat()
 	if self.combat_start > 0 then
 		return self.time - self.combat_start
 	end
+	if self.ability_casting and self.ability_casting.triggers_combat then
+		return 0.1
+	end
 	return 0
 end
 
@@ -1150,10 +1171,8 @@ function Player:BloodlustActive()
 			id == 90355 or  -- Ancient Hysteria (Hunter Pet - Core Hound)
 			id == 160452 or -- Netherwinds (Hunter Pet - Nether Ray)
 			id == 264667 or -- Primal Rage (Hunter Pet - Ferocity)
-			id == 178207 or -- Drums of Fury (Leatherworking)
-			id == 146555 or -- Drums of Rage (Leatherworking)
-			id == 230935 or -- Drums of the Mountain (Leatherworking)
-			id == 256740    -- Drums of the Maelstrom (Leatherworking)
+			id == 381301 or -- Feral Hide Drums (Leatherworking)
+			id == 390386    -- Fury of the Aspects (Evoker)
 		) then
 			return true
 		end
@@ -1542,14 +1561,19 @@ actions.cooldowns+=/elysian_decree
 			return UseCooldown(Trinket2)
 		end
 	end
-	if ElysianDecree:Usable() and Player.enemies >= 3 then
-		return UseCooldown(ElysianDecree)
-	end
-	if TheHunt:Usable() then
-		return UseCooldown(TheHunt)
-	end
-	if ElysianDecree:Usable() then
-		return UseCooldown(ElysianDecree)
+	if not Soulcrush.known or Frailty:Stack() >= 3 then
+		if ElysianDecree:Usable() and Player.enemies >= 3 and Player.soul_fragments <= 2 then
+			return UseCooldown(ElysianDecree)
+		end
+		if SoulCarver:Usable() and Player.soul_fragments <= 2 then
+			return UseCooldown(SoulCarver)
+		end
+		if TheHunt:Usable() then
+			return UseCooldown(TheHunt)
+		end
+		if ElysianDecree:Usable() and Player.soul_fragments <= 3 then
+			return UseCooldown(ElysianDecree)
+		end
 	end
 end
 
@@ -1559,7 +1583,7 @@ actions.defensives=demon_spikes
 actions.defensives+=/metamorphosis,if=!buff.metamorphosis.up&(!covenant.venthyr.enabled|!dot.sinful_brand.ticking)|target.time_to_die<15
 actions.defensives+=/fiery_brand
 ]]
-	if DemonSpikes:Usable() and Target.timeToDie > DemonSpikes:Remains() then
+	if DemonSpikes:Usable() and Target.timeToDie > DemonSpikes:Remains() and (not CalcifiedSpikes.known or DemonSpikes:Down() or DemonSpikes:Charges() == DemonSpikes:MaxCharges()) then
 		UseExtra(DemonSpikes)
 	end
 	if MetamorphosisV:Usable() and not Player.meta_active and (not Demonic.known or not FelDevastation:Ready()) then
@@ -1583,20 +1607,23 @@ actions.normal+=/sigil_of_flame,if=!(covenant.kyrian.enabled&runeforge.razelikhs
 actions.normal+=/shear
 actions.normal+=/throw_glaive
 ]]
-	self.spirit_bomb_condition = SpiritBomb.known and Player.soul_fragments >= (4 - (Player.meta_active and Fracture.known and 1 or 0))
+	self.spirit_bomb_condition = SpiritBomb.known and Player.soul_fragments >= (4 - (((Player.meta_active and Fracture.known) or (SoulCarver.known and SoulCarver:Up())) and 1 or 0))
 	if FieryBrand:Usable() then
 		UseCooldown(FieryBrand)
 	end
 	if InfernalStrike:Usable() and InfernalStrike:ChargesFractional() >= 1.5 then
 		UseExtra(InfernalStrike)
 	end
-	if SigilOfFlame:Usable() and self.spirit_bomb_condition and Player.health.pct >= 50 then
+	if SigilOfFlame:Usable() and self.spirit_bomb_condition and Player.health.pct >= 50 and Player.fury.current < 80 then
 		return SigilOfFlame
 	end
 	if SpiritBomb:Usable() and self.spirit_bomb_condition then
 		return SpiritBomb
 	end
-	if SoulCleave:Usable() and (not SpiritBomb.known or (Player.soul_fragments == 0 and not (Fracture:Previous() or SigilOfFlame:Placed() or ElysianDecree:Placed()))) and (
+	if SigilOfFlame:Usable() and (SpiritBomb:Previous() or SoulCleave:Previous()) and Player.fury.current < 80 then
+		return SigilOfFlame
+	end
+	if SoulCleave:Usable() and (not SpiritBomb.known or (Player.soul_fragments == 0 and not (Fracture:Previous() or SigilOfFlame:Placed() or ElysianDecree:Placed() or SoulCarver:Up()))) and (
 		Player.fury.current >= (Fracture.known and 55 or 70) or
 		not FelDevastation:Ready(Target.timeToDie) or
 		(Player.meta_active and Player.fury.current >= (Fracture.known and 35 or 50))
@@ -1646,7 +1673,7 @@ end
 -- Start UI API
 
 function UI.DenyOverlayGlow(actionButton)
-	if not Opt.glow.blizzard then
+	if not Opt.glow.blizzard and actionButton.overlay then
 		actionButton.overlay:Hide()
 	end
 end
@@ -1753,27 +1780,13 @@ function UI:UpdateGlows()
 end
 
 function UI:UpdateDraggable()
-	lasikPanel:EnableMouse(Opt.aoe or not Opt.locked)
+	local draggable = not (Opt.locked or Opt.snap or Opt.aoe)
+	lasikPanel:EnableMouse(draggable or Opt.aoe)
 	lasikPanel.button:SetShown(Opt.aoe)
-	if Opt.locked then
-		lasikPanel:SetScript('OnDragStart', nil)
-		lasikPanel:SetScript('OnDragStop', nil)
-		lasikPanel:RegisterForDrag('')
-		lasikPreviousPanel:EnableMouse(false)
-		lasikCooldownPanel:EnableMouse(false)
-		lasikInterruptPanel:EnableMouse(false)
-		lasikExtraPanel:EnableMouse(false)
-	else
-		if not Opt.aoe then
-			lasikPanel:SetScript('OnDragStart', lasikPanel.StartMoving)
-			lasikPanel:SetScript('OnDragStop', lasikPanel.StopMovingOrSizing)
-			lasikPanel:RegisterForDrag('LeftButton')
-		end
-		lasikPreviousPanel:EnableMouse(true)
-		lasikCooldownPanel:EnableMouse(true)
-		lasikInterruptPanel:EnableMouse(true)
-		lasikExtraPanel:EnableMouse(true)
-	end
+	lasikPreviousPanel:EnableMouse(draggable)
+	lasikCooldownPanel:EnableMouse(draggable)
+	lasikInterruptPanel:EnableMouse(draggable)
+	lasikExtraPanel:EnableMouse(draggable)
 end
 
 function UI:UpdateAlpha()
@@ -1991,18 +2004,19 @@ end
 function events:ADDON_LOADED(name)
 	if name == ADDON then
 		Opt = Lasik
-		if not Opt.frequency then
-			print('It looks like this is your first time running ' .. ADDON .. ', why don\'t you take some time to familiarize yourself with the commands?')
-			print('Type |cFFFFD000' .. SLASH_Lasik1 .. '|r for a list of commands.')
-		end
-		if UnitLevel('player') < 10 then
-			print('[|cFFFFD000Warning|r] ' .. ADDON .. ' is not designed for players under level 10, and almost certainly will not operate properly!')
-		end
+		local firstRun = not Opt.frequency
 		InitOpts()
 		UI:UpdateDraggable()
 		UI:UpdateAlpha()
 		UI:UpdateScale()
-		UI:SnapAllPanels()
+		if firstRun then
+			print('It looks like this is your first time running ' .. ADDON .. ', why don\'t you take some time to familiarize yourself with the commands?')
+			print('Type |cFFFFD000' .. SLASH_Lasik1 .. '|r for a list of commands.')
+			UI:SnapAllPanels()
+		end
+		if UnitLevel('player') < 10 then
+			print('[|cFFFFD000Warning|r] ' .. ADDON .. ' is not designed for players under level 10, and almost certainly will not operate properly!')
+		end
 	end
 end
 
@@ -2252,6 +2266,7 @@ function events:PLAYER_SPECIALIZATION_CHANGED(unitId)
 	Player:SetTargetMode(1)
 	events:PLAYER_EQUIPMENT_CHANGED()
 	events:PLAYER_REGEN_ENABLED()
+	events:UNIT_HEALTH('player')
 	UI.OnResourceFrameShow()
 	Player:Update()
 end
@@ -2271,18 +2286,6 @@ function events:SPELL_UPDATE_COOLDOWN()
 end
 
 function events:PLAYER_PVP_TALENT_UPDATE()
-	Player:UpdateAbilities()
-end
-
-function events:SOULBIND_ACTIVATED()
-	Player:UpdateAbilities()
-end
-
-function events:SOULBIND_NODE_UPDATED()
-	Player:UpdateAbilities()
-end
-
-function events:SOULBIND_PATH_CHANGED()
 	Player:UpdateAbilities()
 end
 
@@ -2370,18 +2373,25 @@ SlashCmdList[ADDON] = function(msg, editbox)
 			Opt.locked = msg[2] == 'on'
 			UI:UpdateDraggable()
 		end
+		if Opt.aoe or Opt.snap then
+			Status('Warning', 'Panels cannot be moved when aoe or snap are enabled!')
+		end
 		return Status('Locked', Opt.locked)
 	end
 	if startsWith(msg[1], 'snap') then
 		if msg[2] then
 			if msg[2] == 'above' or msg[2] == 'over' then
 				Opt.snap = 'above'
+				Opt.locked = true
 			elseif msg[2] == 'below' or msg[2] == 'under' then
 				Opt.snap = 'below'
+				Opt.locked = true
 			else
 				Opt.snap = false
+				Opt.locked = false
 				lasikPanel:ClearAllPoints()
 			end
+			UI:UpdateDraggable()
 			UI.OnResourceFrameShow()
 		end
 		return Status('Snap to the Personal Resource Display frame', Opt.snap)
