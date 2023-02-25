@@ -1583,7 +1583,7 @@ actions.defensives=demon_spikes
 actions.defensives+=/metamorphosis,if=!buff.metamorphosis.up&(!covenant.venthyr.enabled|!dot.sinful_brand.ticking)|target.time_to_die<15
 actions.defensives+=/fiery_brand
 ]]
-	if DemonSpikes:Usable() and Target.timeToDie > DemonSpikes:Remains() and (not CalcifiedSpikes.known or DemonSpikes:Down() or DemonSpikes:Charges() == DemonSpikes:MaxCharges()) then
+	if DemonSpikes:Usable() and DemonSpikes:Down() and Target.timeToDie > DemonSpikes:Remains() and (not Player.meta_active or DemonSpikes:Charges() == DemonSpikes:MaxCharges()) then
 		UseExtra(DemonSpikes)
 	end
 	if MetamorphosisV:Usable() and not Player.meta_active and (not Demonic.known or not FelDevastation:Ready()) then
