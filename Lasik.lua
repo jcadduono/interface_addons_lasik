@@ -970,7 +970,7 @@ TrailOfRuin.buff_duration = 4
 TrailOfRuin.tick_interval = 1
 local UnleashedPower = Ability:Add(206477, false, true)
 local CalcifiedSpikes = Ability:Add(389720, true, true, 391171)
-CalcifiedSpikes.buff_duration = 10
+CalcifiedSpikes.buff_duration = 12
 local DemonSpikes = Ability:Add(203720, true, true, 203819)
 DemonSpikes.buff_duration = 6
 DemonSpikes.cooldown_duration = 20
@@ -1583,7 +1583,7 @@ actions.defensives=demon_spikes
 actions.defensives+=/metamorphosis,if=!buff.metamorphosis.up&(!covenant.venthyr.enabled|!dot.sinful_brand.ticking)|target.time_to_die<15
 actions.defensives+=/fiery_brand
 ]]
-	if DemonSpikes:Usable() and DemonSpikes:Down() and Target.timeToDie > DemonSpikes:Remains() and (not Player.meta_active or DemonSpikes:Charges() == DemonSpikes:MaxCharges()) then
+	if DemonSpikes:Usable() and DemonSpikes:Down() and Target.timeToDie > DemonSpikes:Remains() and (DemonSpikes:Charges() == DemonSpikes:MaxCharges() or (Player.meta_remains < 1 and (not CalcifiedSpikes.known or CalcifiedSpikes:Remains() < 8))) then
 		UseExtra(DemonSpikes)
 	end
 	if MetamorphosisV:Usable() and not Player.meta_active and (not Demonic.known or not FelDevastation:Ready()) then
@@ -1614,36 +1614,23 @@ actions.normal+=/throw_glaive
 	if InfernalStrike:Usable() and InfernalStrike:ChargesFractional() >= 1.5 then
 		UseExtra(InfernalStrike)
 	end
-	if SigilOfFlame:Usable() and self.spirit_bomb_condition and Player.health.pct >= 50 and Player.fury.current < 80 then
-		return SigilOfFlame
-	end
 	if SpiritBomb:Usable() and self.spirit_bomb_condition then
 		return SpiritBomb
 	end
-	if SigilOfFlame:Usable() and (SpiritBomb:Previous() or SoulCleave:Previous()) and Player.fury.current < 80 then
-		return SigilOfFlame
-	end
-	if SoulCleave:Usable() and (not SpiritBomb.known or (Player.soul_fragments == 0 and not (Fracture:Previous() or SigilOfFlame:Placed() or ElysianDecree:Placed() or SoulCarver:Up()))) and (
-		Player.fury.current >= (Fracture.known and 55 or 70) or
-		not FelDevastation:Ready(Target.timeToDie) or
-		(Player.meta_active and Player.fury.current >= (Fracture.known and 35 or 50))
-	) then
+	if SoulCleave:Usable() and (Player.enemies == 1 or Player.soul_fragments <= 1) and not (Fracture:Previous() or SigilOfFlame:Placed() or ElysianDecree:Placed() or SoulCarver:Up()) then
 		return SoulCleave
 	end
 	if ImmolationAura:Usable() and ImmolationAura:Down() then
 		return ImmolationAura
-	end
-	if Fracture:Usable() and (
-		(SpiritBomb.known and Player.soul_fragments <= 3) or
-		(not SpiritBomb.known and Player.fury.current <= (Player.meta_active and 55 or 70))
-	) then
-		return Fracture
 	end
 	if SigilOfFlame:Usable() then
 		return SigilOfFlame
 	end
 	if ChaosFragments.known and ChaosNova:Usable() and Player.enemies >= 3 and Player.soul_fragments <= 1 and Target.stunnable then
 		UseCooldown(ChaosNova)
+	end
+	if Fracture:Usable() then
+		return Fracture
 	end
 	if Shear:Usable() then
 		return Shear
