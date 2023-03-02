@@ -1592,6 +1592,9 @@ actions.defensives+=/fiery_brand
 	if FelDevastation:Usable() and not Player.meta_active then
 		return UseCooldown(FelDevastation)
 	end
+	if FieryBrand:Usable() and not Player.meta_active and (not Demonic.known or not FelDevastation:Usable()) then
+		return UseCooldown(FieryBrand)
+	end
 end
 
 APL[SPEC.VENGEANCE].normal = function(self)
@@ -1608,9 +1611,6 @@ actions.normal+=/shear
 actions.normal+=/throw_glaive
 ]]
 	self.spirit_bomb_condition = SpiritBomb.known and Player.soul_fragments >= (4 - (((Player.meta_active and Fracture.known) or (SoulCarver.known and SoulCarver:Up())) and 1 or 0))
-	if FieryBrand:Usable() then
-		UseCooldown(FieryBrand)
-	end
 	if InfernalStrike:Usable() and InfernalStrike:ChargesFractional() >= 1.5 then
 		UseExtra(InfernalStrike)
 	end
