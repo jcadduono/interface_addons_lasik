@@ -1111,16 +1111,7 @@ function InventoryItem:Usable(seconds)
 end
 
 -- Inventory Items
-local EternalAugmentRune = InventoryItem:Add(190384)
-EternalAugmentRune.buff = Ability:Add(367405, true, true)
-local EternalFlask = InventoryItem:Add(171280)
-EternalFlask.buff = Ability:Add(307166, true, true)
-local PotionOfPhantomFire = InventoryItem:Add(171349)
-PotionOfPhantomFire.buff = Ability:Add(307495, true, true)
-local PotionOfSpectralAgility = InventoryItem:Add(171270)
-PotionOfSpectralAgility.buff = Ability:Add(307159, true, true)
-local SpectralFlaskOfPower = InventoryItem:Add(171276)
-SpectralFlaskOfPower.buff = Ability:Add(307185, true, true)
+
 -- Equipment
 local Trinket1 = InventoryItem:Add(0)
 local Trinket2 = InventoryItem:Add(0)
@@ -1506,15 +1497,7 @@ local APL = {
 APL[SPEC.HAVOC].Main = function(self)
 	if Player:TimeInCombat() == 0 then
 		if not Player:InArenaOrBattleground() then
-			if EternalAugmentRune:Usable() and EternalAugmentRune.buff:Remains() < 300 then
-				UseCooldown(EternalAugmentRune)
-			end
-			if EternalFlask:Usable() and EternalFlask.buff:Remains() < 300 and SpectralFlaskOfPower.buff:Remains() < 300 then
-				UseCooldown(EternalFlask)
-			end
-			if Opt.pot and SpectralFlaskOfPower:Usable() and SpectralFlaskOfPower.buff:Remains() < 300 and EternalFlask.buff:Remains() < 300 then
-				UseCooldown(SpectralFlaskOfPower)
-			end
+
 		end
 	else
 
@@ -1524,18 +1507,9 @@ end
 APL[SPEC.VENGEANCE].Main = function(self)
 	if Player:TimeInCombat() == 0 then
 		if not Player:InArenaOrBattleground() then
-			if EternalAugmentRune:Usable() and EternalAugmentRune.buff:Remains() < 300 then
-				UseCooldown(EternalAugmentRune)
-			end
-			if EternalFlask:Usable() and EternalFlask.buff:Remains() < 300 and SpectralFlaskOfPower.buff:Remains() < 300 then
-				UseCooldown(EternalFlask)
-			end
-			if Opt.pot and SpectralFlaskOfPower:Usable() and SpectralFlaskOfPower.buff:Remains() < 300 and EternalFlask.buff:Remains() < 300 then
-				UseCooldown(SpectralFlaskOfPower)
-			end
+
 		end
 	else
-
 	end
 	self:defensives()
 	self:cooldowns()
@@ -1551,9 +1525,6 @@ actions.cooldowns+=/sinful_brand,if=!dot.sinful_brand.ticking
 actions.cooldowns+=/the_hunt
 actions.cooldowns+=/elysian_decree
 ]]
-	if Opt.pot and Target.boss and PotionOfSpectralAgility:Usable() then
-		return UseCooldown(PotionOfSpectralAgility)
-	end
 	if Opt.trinket then
 		if Trinket1:Usable() then
 			return UseCooldown(Trinket1)
@@ -1561,7 +1532,7 @@ actions.cooldowns+=/elysian_decree
 			return UseCooldown(Trinket2)
 		end
 	end
-	if not Soulcrush.known or Frailty:Stack() >= 3 then
+	if not Soulcrush.known or Frailty:Stack() >= floor(4 / Player.haste_factor) then
 		if ElysianDecree:Usable() and Player.enemies >= 3 and Player.soul_fragments <= 2 then
 			return UseCooldown(ElysianDecree)
 		end
