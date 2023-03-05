@@ -490,6 +490,7 @@ function Ability:Add(spellId, buff, player, spellId2)
 		hasted_cooldown = false,
 		hasted_ticks = false,
 		known = false,
+		rank = 0,
 		fury_cost = 0,
 		cooldown_duration = 0,
 		buff_duration = 0,
@@ -1213,8 +1214,10 @@ function Player:UpdateAbilities()
 	self.fury.max = UnitPowerMax('player', 17)
 
 	local node
+	local configId = C_ClassTalents.GetActiveConfigID()
 	for _, ability in next, abilities.all do
 		ability.known = false
+		ability.rank = 0
 		for _, spellId in next, ability.spellIds do
 			ability.spellId, ability.name, _, ability.icon = spellId, GetSpellInfo(spellId)
 			if IsPlayerSpell(spellId) or (ability.learn_spellId and IsPlayerSpell(ability.learn_spellId)) then
@@ -1224,6 +1227,13 @@ function Player:UpdateAbilities()
 		end
 		if ability.bonus_id then -- used for checking enchants and crafted effects
 			ability.known = self:BonusIdEquipped(ability.bonus_id)
+		end
+		if ability.talent_node and configId then
+			node = C_Traits.GetNodeInfo(configId, ability.talent_node)
+			if node then
+				ability.rank = node.activeRank
+				ability.known = ability.rank > 0
+			end
 		end
 		if C_LevelLink.IsSpellLocked(ability.spellId) or (ability.check_usable and not IsUsableSpell(ability.spellId)) then
 			ability.known = false -- spell is locked, do not mark as known
@@ -2227,6 +2237,10 @@ function events:PLAYER_SPECIALIZATION_CHANGED(unitId)
 	events:UNIT_HEALTH('player')
 	UI.OnResourceFrameShow()
 	Player:Update()
+end
+
+function events:TRAIT_CONFIG_UPDATED()
+	events:PLAYER_SPECIALIZATION_CHANGED('player')
 end
 
 function events:SPELL_UPDATE_COOLDOWN()
