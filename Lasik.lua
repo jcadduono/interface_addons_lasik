@@ -581,7 +581,7 @@ function Ability:Remains()
 			if expires == 0 then
 				return 600 -- infinite duration
 			end
-			return max(0, expires - Player.ctime - Player.execute_remains)
+			return max(0, expires - Player.ctime - (self.off_gcd and 0 or Player.execute_remains))
 		end
 	end
 	return 0
@@ -635,7 +635,7 @@ function Ability:Ticking()
 	local count, ticking = 0, {}
 	if self.aura_targets then
 		for guid, aura in next, self.aura_targets do
-			if aura.expires - Player.time > Player.execute_remains then
+			if aura.expires - Player.time > (self.off_gcd and 0 or Player.execute_remains) then
 				ticking[guid] = true
 			end
 		end
@@ -669,7 +669,7 @@ function Ability:Cooldown()
 	if start == 0 then
 		return 0
 	end
-	return max(0, duration - (Player.ctime - start) - Player.execute_remains)
+	return max(0, duration - (Player.ctime - start) - (self.off_gcd and 0 or Player.execute_remains))
 end
 
 function Ability:Stack()
@@ -679,7 +679,7 @@ function Ability:Stack()
 		if not id then
 			return 0
 		elseif self:Match(id) then
-			return (expires == 0 or expires - Player.ctime > Player.execute_remains) and count or 0
+			return (expires == 0 or expires - Player.ctime > (self.off_gcd and 0 or Player.execute_remains)) and count or 0
 		end
 	end
 	return 0
@@ -704,7 +704,7 @@ function Ability:ChargesFractional()
 	if charges >= max_charges then
 		return charges
 	end
-	return charges + ((max(0, Player.ctime - recharge_start + Player.execute_remains)) / recharge_time)
+	return charges + ((max(0, Player.ctime - recharge_start + (self.off_gcd and 0 or Player.execute_remains))) / recharge_time)
 end
 
 function Ability:Charges()
@@ -763,6 +763,10 @@ function Ability:Previous(n)
 		i = i - 1
 	end
 	return Player.previous_gcd[i] == self
+end
+
+function Ability:UsedWithin(seconds)
+	return self.last_used >= (Player.time - seconds)
 end
 
 function Ability:AutoAoe(removeUnaffected, trigger)
@@ -950,6 +954,7 @@ Note: To get talent_node value for a talent, hover over talent and use macro:
 local Disrupt = Ability:Add(183752, false, true)
 Disrupt.cooldown_duration = 15
 Disrupt.triggers_gcd = false
+Disrupt.off_gcd = true
 local ImmolationAura = Ability:Add(258920, true, true)
 ImmolationAura.buff_duration = 6
 ImmolationAura.cooldown_duration = 15
@@ -966,6 +971,7 @@ Metamorphosis.stun:AutoAoe(false, 'apply')
 local Torment = Ability:Add(185245, false, true)
 Torment.cooldown_duration = 8
 Torment.triggers_gcd = false
+Torment.off_gcd = true
 ------ Talents
 local ChaosNova = Ability:Add(179057, false, true)
 ChaosNova.buff_duration = 2
@@ -1056,12 +1062,15 @@ local CalcifiedSpikes = Ability:Add(389720, true, true, 391171)
 CalcifiedSpikes.buff_duration = 12
 local CharredFlesh = Ability:Add(336639, false, true)
 CharredFlesh.talent_node = 90962
+local DarkglareBoon = Ability:Add(389708, false, true)
+DarkglareBoon.talent_node = 90985
 local DemonSpikes = Ability:Add(203720, true, true, 203819)
 DemonSpikes.buff_duration = 6
 DemonSpikes.cooldown_duration = 20
 DemonSpikes.hasted_cooldown = true
 DemonSpikes.requires_charge = true
 DemonSpikes.triggers_gcd = false
+DemonSpikes.off_gcd = true
 local ElysianDecree = Ability:Add(306830, false, true)
 ElysianDecree.cooldown_duration = 60
 ElysianDecree.check_usable = true
@@ -1086,6 +1095,7 @@ local InfernalStrike = Ability:Add(189110, false, true, 189112)
 InfernalStrike.cooldown_duration = 20
 InfernalStrike.requires_charge = true
 InfernalStrike.triggers_gcd = false
+InfernalStrike.off_gcd = true
 InfernalStrike:AutoAoe()
 local MetamorphosisV = Ability:Add(187827, true, true)
 MetamorphosisV.buff_duration = 15
@@ -1595,6 +1605,15 @@ function ImmolationAura.damage:CastLanded(dstGUID, event, missType)
 	end
 end
 
+function FieryBrand:AnyRemainsUnder(seconds)
+	for guid, aura in next, self.aura_targets do
+		if AutoAoe.targets[guid] and aura.expires < (Player.time + seconds) then
+			return true
+		end
+	end
+	return false
+end
+
 -- End Ability Modifications
 
 local function UseCooldown(ability, overwrite)
@@ -1676,6 +1695,7 @@ actions+=/shear
 actions+=/throw_glaive
 actions+=/felblade
 ]]
+	self.soul_fragments = Player.soul_fragments + (Shear:UsedWithin(1) and 1 or 0) + (Fracture:UsedWithin(1) and 2 or 0)
 	self.the_hunt_on_cooldown = not TheHunt.known or not TheHunt:Ready()
 	self.elysian_decree_on_cooldown = not ElysianDecree.known or not ElysianDecree:Ready()
 	self.soul_carver_on_cooldown = not SoulCarver.known or not SoulCarver:Ready()
@@ -1696,10 +1716,10 @@ actions+=/felblade
 	if SigilOfFlame:Usable() and FieryDemise.known and self.fiery_demise_fiery_brand_is_ticking_on_any_target then
 		return SigilOfFlame
 	end
-	if SpiritBomb:Usable() and Player.soul_fragments >= self.spirit_bomb_soul_fragments and (Player.enemies > 1 or self.fiery_demise_fiery_brand_is_ticking_on_any_target) then
+	if SpiritBomb:Usable() and self.soul_fragments >= self.spirit_bomb_soul_fragments and (Player.enemies > 1 or self.fiery_demise_fiery_brand_is_ticking_on_any_target) then
 		return SpiritBomb
 	end
-	if SoulCleave:Usable() and (Player.enemies <= 1 or (Player.soul_fragments <= 1 and Player.enemies > 1)) and not (Fracture:Previous() or SigilOfFlame:Placed() or ElysianDecree:Placed() or (Player.enemies > 1 and SoulCarver:Up())) then
+	if SoulCleave:Usable() and (Player.enemies <= 1 or (self.soul_fragments <= 1 and Player.enemies > 1)) then
 		return SoulCleave
 	end
 	if SigilOfFlame:Usable() then
@@ -1708,7 +1728,7 @@ actions+=/felblade
 	if ImmolationAura:Usable() then
 		return ImmolationAura
 	end
-	if ChaosFragments.known and ChaosNova:Usable() and Player.enemies >= 3 and Player.soul_fragments <= 1 and Target.stunnable then
+	if ChaosFragments.known and ChaosNova:Usable() and Player.enemies >= 3 and self.soul_fragments <= 1 and Target.stunnable then
 		UseCooldown(ChaosNova)
 	end
 	if Fracture:Usable() then
@@ -1726,10 +1746,10 @@ actions+=/felblade
 end
 
 APL[SPEC.VENGEANCE].defensives = function(self)
-	if DemonSpikes:Usable() and DemonSpikes:Down() and (DemonSpikes:Charges() == DemonSpikes:MaxCharges() or (Player.meta_remains < 0.5 and (not CalcifiedSpikes.known or CalcifiedSpikes:Remains() < 8))) then
+	if DemonSpikes:Usable() and DemonSpikes:Down() and (DemonSpikes:Charges() == DemonSpikes:MaxCharges() or (not Player.meta_active and (not CalcifiedSpikes.known or CalcifiedSpikes:Remains() < 8))) then
 		return UseExtra(DemonSpikes)
 	end
-	if MetamorphosisV:Usable() and not Player.meta_active and (not Demonic.known or not FelDevastation:Ready()) then
+	if MetamorphosisV:Usable() and not Player.meta_active and self.fiery_demise_fiery_brand_is_not_ticking_on_current_target and (not Demonic.known or not FelDevastation:Ready()) and (Player.health.pct <= 60 or (DemonSpikes:Down() and not DemonSpikes:Ready())) then
 		return UseExtra(MetamorphosisV)
 	end
 end
@@ -1752,10 +1772,10 @@ APL[SPEC.VENGEANCE].cooldowns = function(self)
 			return UseCooldown(SoulCarver)
 		end
 	end
-	if FelDevastation:Usable() and not Player.meta_active and self.fiery_demise_fiery_brand_is_ticking_on_current_target and FieryBrand:Remains() < 3 then
+	if FelDevastation:Usable() and not Player.meta_active and (Player.health.pct <= 30 or (self.fiery_demise_fiery_brand_is_ticking_on_any_target and FieryBrand:AnyRemainsUnder(3)) or (not FieryDemise.known or (self.fiery_demise_fiery_brand_is_not_ticking_on_any_target and not FieryBrand:Ready(50 - (9 * DarkglareBoon.rank))))) then
 		return UseCooldown(FelDevastation)
 	end
-	if FieryBrand:Usable() and self.fiery_demise_fiery_brand_is_not_ticking_on_any_target and self.the_hunt_on_cooldown and self.elysian_decree_on_cooldown and ((SoulCarver.known and SoulCarver:Ready(10)) or (FelDevastation.known and FelDevastation:Ready(10)) or (not SoulCarver.known and not FelDevastation.known)) then
+	if FieryBrand:Usable() and self.fiery_demise_fiery_brand_is_not_ticking_on_any_target and ((FelDevastation.known and FelDevastation:Ready(10)) or FieryBrand:Charges() == 2 or (self.the_hunt_on_cooldown and self.elysian_decree_on_cooldown and ((SoulCarver.known and SoulCarver:Ready(10)) or FieryBrand:ChargesFractional() >= 1.75))) then
 		return UseCooldown(FieryBrand)
 	end
 	if Opt.trinket then
