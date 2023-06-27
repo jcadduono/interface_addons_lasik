@@ -1123,7 +1123,7 @@ Vulnerability.talent_node = 90981
 local SoulFragments = Ability:Add(204254, false, true, 204255)
 SoulFragments.buff = Ability:Add(203981, true, true)
 -- Tier bonuses
-
+local Recrimination = Ability:Add(409877, true, true)
 -- PvP talents
 
 -- Racials
@@ -1356,6 +1356,7 @@ function Player:UpdateKnown()
 	if Fracture.known then
 		Shear.known = false
 	end
+	Recrimination.known = self.set_bonus.t30 >= 4
 
 --[[
 actions.precombat+=/variable,name=spirit_bomb_soul_fragments_not_in_meta,op=setif,value=4,value_else=5,condition=talent.fracture
@@ -1769,7 +1770,10 @@ actions+=/felblade
 	if SpiritBomb:Usable() and self.soul_fragments >= self.spirit_bomb_soul_fragments and (Player.enemies > 1 or self.fiery_demise_fiery_brand_is_ticking_on_any_target) then
 		return SpiritBomb
 	end
-	if SoulCleave:Usable() and (Player.enemies <= 1 or (self.soul_fragments <= 1 and Player.enemies > 1)) and not (self.fiery_demise_fiery_brand_is_ticking_on_any_target and FelDevastation.known and FelDevastation:Ready(Player.gcd) and FieryBrand:AnyRemainsUnder(3 + Player.gcd)) then
+	if SoulCleave:Usable() and (
+		(Player.enemies <= 1 and (not fiery_demise_fiery_brand_is_ticking_on_current_target or self.soul_fragments <= 1) and (Player.fury.deficit <= 30 or self.soul_fragments >= 3 or SoulCleave:Previous())) or
+		(Player.enemies > 1 and self.soul_fragments <= 1)
+	) and (Player.fury.current >= 80 or not (self.fiery_demise_fiery_brand_is_ticking_on_any_target and FelDevastation.known and FelDevastation:Ready(Player.gcd) and FieryBrand:AnyRemainsUnder(3 + Player.gcd))) then
 		return SoulCleave
 	end
 	if SigilOfFlame:Usable() then
@@ -1781,11 +1785,17 @@ actions+=/felblade
 	if ChaosFragments.known and ChaosNova:Usable() and Player.enemies >= 3 and self.soul_fragments <= 1 and Target.stunnable then
 		UseCooldown(ChaosNova)
 	end
+	if SoulCleave:Usable() and Recrimination.known and self.fiery_demise_fiery_brand_is_ticking_on_current_target and self.soul_fragments <= 1 and Recrimination:Up() then
+		return SoulCleave
+	end
 	if Fracture:Usable() then
 		return Fracture
 	end
 	if Shear:Usable() then
 		return Shear
+	end
+	if SoulCleave:Usable() and Player.enemies <= 1 then
+		return SoulCleave
 	end
 	if ThrowGlaiveV:Usable() then
 		return ThrowGlaiveV
@@ -1822,10 +1832,10 @@ APL[SPEC.VENGEANCE].cooldowns = function(self)
 			return UseCooldown(SoulCarver)
 		end
 	end
-	if FelDevastation:Usable() and not Player.meta_active and (Player.health.pct <= 30 or (self.fiery_demise_fiery_brand_is_ticking_on_any_target and FieryBrand:AnyRemainsUnder(3)) or (not FieryDemise.known or (self.fiery_demise_fiery_brand_is_not_ticking_on_any_target and not FieryBrand:Ready(50 - (9 * DarkglareBoon.rank))))) then
+	if FelDevastation:Usable() and not Player.meta_active and (Player.health.pct <= 30 or (self.fiery_demise_fiery_brand_is_ticking_on_any_target and (FieryBrand:AnyRemainsUnder(3) or (FieryBrand:ChargesFractional() >= 1.5 and FieryBrand:Ticking() >= Player.enemies))) or (not FieryDemise.known or (self.fiery_demise_fiery_brand_is_not_ticking_on_any_target and not FieryBrand:Ready(50 - (9 * DarkglareBoon.rank))))) then
 		return UseCooldown(FelDevastation)
 	end
-	if FieryBrand:Usable() and self.fiery_demise_fiery_brand_is_not_ticking_on_any_target and ((FelDevastation.known and FelDevastation:Ready(10) and Player.meta_remains < 6) or FieryBrand:Charges() == 2 or (self.the_hunt_on_cooldown and self.elysian_decree_on_cooldown and ((SoulCarver.known and SoulCarver:Ready(10)) or FieryBrand:ChargesFractional() >= 1.75))) then
+	if FieryBrand:Usable() and (not Recrimination.known or Recrimination:Down()) and ((self.fiery_demise_fiery_brand_is_not_ticking_on_current_target and FieryBrand:ChargesFractional() >= 1.9) or (self.fiery_demise_fiery_brand_is_not_ticking_on_any_target and ((FelDevastation.known and FelDevastation:Ready(10) and Player.meta_remains < 8) or (self.the_hunt_on_cooldown and self.elysian_decree_on_cooldown and ((SoulCarver.known and SoulCarver:Ready(10)) or FieryBrand:ChargesFractional() >= 1.75))))) then
 		return UseCooldown(FieryBrand)
 	end
 	if Opt.trinket then
