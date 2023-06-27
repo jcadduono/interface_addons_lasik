@@ -1769,7 +1769,7 @@ actions+=/felblade
 	if SpiritBomb:Usable() and self.soul_fragments >= self.spirit_bomb_soul_fragments and (Player.enemies > 1 or self.fiery_demise_fiery_brand_is_ticking_on_any_target) then
 		return SpiritBomb
 	end
-	if SoulCleave:Usable() and (Player.enemies <= 1 or (self.soul_fragments <= 1 and Player.enemies > 1)) then
+	if SoulCleave:Usable() and (Player.enemies <= 1 or (self.soul_fragments <= 1 and Player.enemies > 1)) and not (self.fiery_demise_fiery_brand_is_ticking_on_any_target and FelDevastation.known and FelDevastation:Ready(Player.gcd) and FieryBrand:AnyRemainsUnder(3 + Player.gcd)) then
 		return SoulCleave
 	end
 	if SigilOfFlame:Usable() then
