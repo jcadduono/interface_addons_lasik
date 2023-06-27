@@ -223,7 +223,6 @@ local Player = {
 	main_freecast = false,
 	meta_remains = 0,
 	meta_active = false,
-	soul_fragments = 0,
 }
 
 -- current target information
@@ -1074,6 +1073,7 @@ DemonSpikes.off_gcd = true
 local ElysianDecree = Ability:Add(306830, false, true)
 ElysianDecree.cooldown_duration = 60
 ElysianDecree.check_usable = true
+local Fallout = Ability:Add(227174, false, true)
 local FelDevastation = Ability:Add(212084, false, true)
 FelDevastation.fury_cost = 50
 FelDevastation.buff_duration = 2
@@ -1083,6 +1083,7 @@ local FieryBrand = Ability:Add(204021, false, true, 207771)
 FieryBrand.buff_duration = 10
 FieryBrand.cooldown_duration = 60
 FieryBrand:TrackAuras()
+FieryBrand:AutoAoe(false, 'apply')
 local FieryDemise = Ability:Add(389220, false, true)
 FieryDemise.talent_node = 90958
 local Fracture = Ability:Add(263642, false, true)
@@ -1119,7 +1120,8 @@ ThrowGlaiveV:AutoAoe()
 local Vulnerability = Ability:Add(389976, false, true)
 Vulnerability.talent_node = 90981
 ------ Procs
-local SoulFragments = Ability:Add(204254, true, true, 203981)
+local SoulFragments = Ability:Add(204254, false, true, 204255)
+SoulFragments.buff = Ability:Add(203981, true, true)
 -- Tier bonuses
 
 -- PvP talents
@@ -1422,10 +1424,9 @@ function Player:Update()
 	self:UpdateThreat()
 	if self.spec == SPEC.HAVOC then
 		self.meta_remains = Metamorphosis:Remains()
-		self.soul_fragments = 0
 	elseif self.spec == SPEC.VENGEANCE then
 		self.meta_remains = MetamorphosisV:Remains()
-		self.soul_fragments = SoulFragments:Stack()
+		SoulFragments:Update()
 	end
 	self.meta_active = self.meta_remains > 0
 
@@ -1614,6 +1615,55 @@ function FieryBrand:AnyRemainsUnder(seconds)
 	return false
 end
 
+SoulFragments.spawning = {}
+SoulFragments.current = 0
+SoulFragments.incoming = 0
+
+function SoulFragments:Update()
+	local count = 0
+	for i = #self.spawning, 1, -1 do
+		if (Player.time - self.spawning[i]) >= 1 then -- fragment expired/never existed
+			table.remove(self.spawning, i)
+		elseif (self.spawning[i] + 0.8) < (Player.time + Player.execute_remains) then
+			count = count + 1
+		end
+	end
+	self.current = self.buff:Stack()
+	self.incoming = count
+end
+
+function SoulFragments:CastSuccess()
+	if #self.spawning > 0 then
+		table.remove(self.spawning, 1)
+	end
+end
+
+function SoulFragments:Spawn(amount)
+	for i = 1, amount do
+		self.spawning[#self.spawning + 1] = Player.time
+	end
+end
+
+function Fracture:CastSuccess(...)
+	Ability.CastSuccess(self, ...)
+	SoulFragments:Spawn(2)
+end
+
+function Shear:CastSuccess(...)
+	Ability.CastSuccess(self, ...)
+	SoulFragments:Spawn(1)
+end
+
+function ImmolationAura:CastSuccess(...)
+	Ability.CastSuccess(self, ...)
+	if Fallout.known then
+		local fragments = floor(Player.enemies * 0.5)
+		if fragments > 0 then
+			SoulFragments:Spawn(fragments)
+		end
+	end
+end
+
 -- End Ability Modifications
 
 local function UseCooldown(ability, overwrite)
@@ -1695,7 +1745,7 @@ actions+=/shear
 actions+=/throw_glaive
 actions+=/felblade
 ]]
-	self.soul_fragments = Player.soul_fragments + (Shear:UsedWithin(1) and 1 or 0) + (Fracture:UsedWithin(1) and 2 or 0)
+	self.soul_fragments = SoulFragments.current + SoulFragments.incoming
 	self.the_hunt_on_cooldown = not TheHunt.known or not TheHunt:Ready()
 	self.elysian_decree_on_cooldown = not ElysianDecree.known or not ElysianDecree:Ready()
 	self.soul_carver_on_cooldown = not SoulCarver.known or not SoulCarver:Ready()
@@ -1775,7 +1825,7 @@ APL[SPEC.VENGEANCE].cooldowns = function(self)
 	if FelDevastation:Usable() and not Player.meta_active and (Player.health.pct <= 30 or (self.fiery_demise_fiery_brand_is_ticking_on_any_target and FieryBrand:AnyRemainsUnder(3)) or (not FieryDemise.known or (self.fiery_demise_fiery_brand_is_not_ticking_on_any_target and not FieryBrand:Ready(50 - (9 * DarkglareBoon.rank))))) then
 		return UseCooldown(FelDevastation)
 	end
-	if FieryBrand:Usable() and self.fiery_demise_fiery_brand_is_not_ticking_on_any_target and ((FelDevastation.known and FelDevastation:Ready(10)) or FieryBrand:Charges() == 2 or (self.the_hunt_on_cooldown and self.elysian_decree_on_cooldown and ((SoulCarver.known and SoulCarver:Ready(10)) or FieryBrand:ChargesFractional() >= 1.75))) then
+	if FieryBrand:Usable() and self.fiery_demise_fiery_brand_is_not_ticking_on_any_target and ((FelDevastation.known and FelDevastation:Ready(10) and Player.meta_remains < 6) or FieryBrand:Charges() == 2 or (self.the_hunt_on_cooldown and self.elysian_decree_on_cooldown and ((SoulCarver.known and SoulCarver:Ready(10)) or FieryBrand:ChargesFractional() >= 1.75))) then
 		return UseCooldown(FieryBrand)
 	end
 	if Opt.trinket then
@@ -2056,8 +2106,11 @@ function UI:UpdateDisplay()
 	if Player.meta_active then
 		text_tr = format('%.1fs', Player.meta_remains)
 	end
-	if Player.soul_fragments > 0 then
-		text_tl = Player.soul_fragments
+	if SoulFragments.current + SoulFragments.incoming > 0 then
+		text_tl = SoulFragments.current
+		if SoulFragments.incoming > 0 then
+			text_tl = text_tl .. '+' .. SoulFragments.incoming
+		end
 	end
 	if border ~= lasikPanel.border.overlay then
 		lasikPanel.border.overlay = border
