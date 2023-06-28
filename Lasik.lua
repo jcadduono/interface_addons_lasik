@@ -1088,6 +1088,7 @@ local FieryDemise = Ability:Add(389220, false, true)
 FieryDemise.talent_node = 90958
 local Fracture = Ability:Add(263642, false, true)
 Fracture.cooldown_duration = 4.5
+Fracture.fury_gain = 25
 Fracture.hasted_cooldown = true
 Fracture.requires_charge = true
 local Frailty = Ability:Add(389958, false, true, 247456)
@@ -1102,6 +1103,8 @@ local MetamorphosisV = Ability:Add(187827, true, true)
 MetamorphosisV.buff_duration = 15
 MetamorphosisV.cooldown_duration = 180
 local Shear = Ability:Add(203783, false, true)
+Shear.fury_gain = 10
+local ShearFury = Ability:Add(389997, false, true)
 local SoulCarver = Ability:Add(207407, false, true)
 SoulCarver.cooldown_duration = 60
 SoulCarver.buff_duration = 3
@@ -1369,6 +1372,7 @@ actions.precombat+=/variable,name=cooldown_frailty_requirement_aoe,op=setif,valu
 	self.spirit_bomb_soul_fragments_in_meta = Fracture.known and 3 or 4
 	self.cooldown_frailty_requirement_st = (Vulnerability.known and 1 or 0) * (SoulCrush.known and 6 or 1)
 	self.cooldown_frailty_requirement_aoe = (Vulnerability.known and 1 or 0) * (SoulCrush.known and 5 or 1)
+	self.filler_fury = (Fracture.known and Fracture:Gain()) or (Shear.known and Shear:Gain()) or 0
 
 	Abilities:Update()
 end
@@ -1645,6 +1649,25 @@ function SoulFragments:Spawn(amount)
 	end
 end
 
+function Shear:Gain()
+	local gain = Ability.Gain(self)
+	if ShearFury.known then
+		gain = gain + 10
+	end
+	if Player.set_bonus.t29 >= 2 then
+		gain = gain * 1.20
+	end
+	return gain
+end
+
+function Fracture:Gain()
+	local gain = Ability.Gain(self)
+	if Player.set_bonus.t29 >= 2 then
+		gain = gain * 1.20
+	end
+	return gain
+end
+
 function Fracture:CastSuccess(...)
 	Ability.CastSuccess(self, ...)
 	SoulFragments:Spawn(2)
@@ -1757,6 +1780,7 @@ actions+=/felblade
 	self.fiery_demise_fiery_brand_is_not_ticking_on_any_target = FieryBrand.known and (not FieryDemise.known or FieryBrand:Ticking() == 0)
 	self.spirit_bomb_soul_fragments = Player.meta_active and Player.spirit_bomb_soul_fragments_in_meta or Player.spirit_bomb_soul_fragments_not_in_meta
 	self.cooldown_frailty_requirement = (SpiritBomb.known and (Player.enemies > 1 or self.fiery_demise_fiery_brand_is_ticking_on_any_target)) and Player.cooldown_frailty_requirement_aoe or Player.cooldown_frailty_requirement_st
+	self.pooling_for_fel_devastation = FelDevastation.known and Player.meta_remains < Player.gcd and self.fiery_demise_fiery_brand_is_ticking_on_any_target and FelDevastation:Ready(Player.gcd) and FieryBrand:AnyRemainsUnder(3 + Player.gcd)
 
 	self:defensives()
 	self:cooldowns()
@@ -1767,13 +1791,21 @@ actions+=/felblade
 	if SigilOfFlame:Usable() and FieryDemise.known and self.fiery_demise_fiery_brand_is_ticking_on_any_target then
 		return SigilOfFlame
 	end
+	if Recrimination.known and self.fiery_demise_fiery_brand_is_not_ticking_on_any_target and Recrimination:Up() then
+		if Fracture:Usable() and self.soul_fragments <= 3 and Fracture:WontCapFury() then
+			return Fracture
+		end
+		if Shear:Usable() and self.soul_fragments <= 4 and Shear:WontCapFury() then
+			return Shear
+		end
+	end
 	if SpiritBomb:Usable() and self.soul_fragments >= self.spirit_bomb_soul_fragments and (Player.enemies > 1 or self.fiery_demise_fiery_brand_is_ticking_on_any_target) then
 		return SpiritBomb
 	end
-	if SoulCleave:Usable() and (
-		(Player.enemies <= 1 and (not fiery_demise_fiery_brand_is_ticking_on_current_target or self.soul_fragments <= 1) and (Player.fury.deficit <= 30 or self.soul_fragments >= 3 or SoulCleave:Previous())) or
+	if SoulCleave:Usable() and (not self.pooling_for_fel_devastation or Player.fury.current >= (FelDevastation:Cost() + SoulCleave:Cost())) and (
+		(Player.enemies <= 1 and (not fiery_demise_fiery_brand_is_ticking_on_current_target or self.soul_fragments <= 1) and (Player.fury.deficit <= Player.filler_fury or self.soul_fragments >= 3 or SoulCleave:Previous())) or
 		(Player.enemies > 1 and self.soul_fragments <= 1)
-	) and (Player.fury.current >= 80 or not (self.fiery_demise_fiery_brand_is_ticking_on_any_target and FelDevastation.known and FelDevastation:Ready(Player.gcd) and FieryBrand:AnyRemainsUnder(3 + Player.gcd))) then
+	) then
 		return SoulCleave
 	end
 	if SigilOfFlame:Usable() then
@@ -1832,7 +1864,7 @@ APL[SPEC.VENGEANCE].cooldowns = function(self)
 			return UseCooldown(SoulCarver)
 		end
 	end
-	if FelDevastation:Usable() and not Player.meta_active and (Player.health.pct <= 30 or (self.fiery_demise_fiery_brand_is_ticking_on_any_target and (FieryBrand:AnyRemainsUnder(3) or (FieryBrand:ChargesFractional() >= 1.5 and FieryBrand:Ticking() >= Player.enemies))) or (not FieryDemise.known or (self.fiery_demise_fiery_brand_is_not_ticking_on_any_target and not FieryBrand:Ready(50 - (9 * DarkglareBoon.rank))))) then
+	if FelDevastation:Usable() and Player.meta_remains < 8 and (Player.health.pct <= 30 or (self.fiery_demise_fiery_brand_is_ticking_on_any_target and (FieryBrand:AnyRemainsUnder(3) or (FieryBrand:ChargesFractional() >= 1.5 and FieryBrand:Ticking() >= Player.enemies))) or (not FieryDemise.known or (self.fiery_demise_fiery_brand_is_not_ticking_on_any_target and not FieryBrand:Ready(50 - (9 * DarkglareBoon.rank))))) then
 		return UseCooldown(FelDevastation)
 	end
 	if FieryBrand:Usable() and (not Recrimination.known or Recrimination:Down()) and ((self.fiery_demise_fiery_brand_is_not_ticking_on_current_target and FieryBrand:ChargesFractional() >= 1.9) or (self.fiery_demise_fiery_brand_is_not_ticking_on_any_target and ((FelDevastation.known and FelDevastation:Ready(10) and Player.meta_remains < 8) or (self.the_hunt_on_cooldown and self.elysian_decree_on_cooldown and ((SoulCarver.known and SoulCarver:Ready(10)) or FieryBrand:ChargesFractional() >= 1.75))))) then
