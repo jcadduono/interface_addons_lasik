@@ -899,7 +899,7 @@ function Ability:ApplyAura(guid)
 	if AutoAoe.blacklist[guid] then
 		return
 	end
-	local aura = {}
+	local aura = self.aura_targets[guid] or {}
 	aura.expires = Player.time + self:Duration()
 	self.aura_targets[guid] = aura
 	return aura
@@ -914,24 +914,15 @@ function Ability:RefreshAura(guid)
 		return self:ApplyAura(guid)
 	end
 	local duration = self:Duration()
-	aura.expires = max(aura.expires, Player.time + min(duration * 1.3, (aura.expires - Player.time) + duration))
+	aura.expires = max(aura.expires, Player.time + min(duration * (self.no_pandemic and 1.0 or 1.3), (aura.expires - Player.time) + duration))
 	return aura
 end
 
 function Ability:RefreshAuraAll()
 	local duration = self:Duration()
 	for guid, aura in next, self.aura_targets do
-		aura.expires = max(aura.expires, Player.time + min(duration * 1.3, (aura.expires - Player.time) + duration))
+		aura.expires = max(aura.expires, Player.time + min(duration * (self.no_pandemic and 1.0 or 1.3), (aura.expires - Player.time) + duration))
 	end
-end
-
-function Ability:ExtendAura(guid, seconds)
-	local aura = self.aura_targets[guid]
-	if not aura then
-		return
-	end
-	aura.expires = aura.expires + seconds
-	return aura
 end
 
 function Ability:RemoveAura(guid)
@@ -1082,6 +1073,7 @@ FelDevastation:AutoAoe()
 local FieryBrand = Ability:Add(204021, false, true, 207771)
 FieryBrand.buff_duration = 10
 FieryBrand.cooldown_duration = 60
+FieryBrand.no_pandemic = true
 FieryBrand:TrackAuras()
 FieryBrand:AutoAoe(false, 'apply')
 local FieryDemise = Ability:Add(389220, false, true)
@@ -1607,8 +1599,75 @@ ElysianDecree.Placed = SigilOfFlame.Placed
 
 function ImmolationAura.damage:CastLanded(dstGUID, event, missType)
 	if FieryBrand.known and CharredFlesh.known then
-		FieryBrand:ExtendAura(dstGUID, CharredFlesh.rank * 0.25)
+		FieryBrand:CFExtend(dstGUID)
 	end
+end
+
+function FieryBrand:CastSuccess(...)
+	Ability.CastSuccess(self, ...)
+	self.cast_trigger = true
+end
+
+function FieryBrand:ApplyAura(guid)
+	local aura = Ability.ApplyAura(self, guid)
+	if not aura then
+		return
+	end
+	if self.cast_trigger then
+		self.cast_trigger = false
+		aura.main = true
+		aura.cf_extend_time = 0
+		aura.cf_extends = 0
+	elseif self.recrimination_trigger then
+		self.recrimination_trigger = false
+		aura.main = true
+		aura.cf_extend_time = 0
+		aura.cf_extends = 0
+		aura.expires = Player.time + 6
+	end
+	return aura
+end
+
+function FieryBrand:RefreshAura(guid)
+	local aura = self.aura_targets[guid]
+	if not aura or self.cast_trigger then
+		return self:ApplyAura(guid)
+	end
+	if self.recrimination_trigger then
+		self.recrimination_trigger = false
+		aura.main = true
+		aura.cf_extend_time = 0
+		aura.cf_extends = 0
+		aura.expires = aura.expires + 6
+	end
+	return aura
+end
+
+function FieryBrand:GetMainAura()
+	for guid, aura in next, self.aura_targets do
+		if aura.main and aura.expires - Player.time > 0 then
+			return aura
+		end
+	end
+end
+
+function FieryBrand:CFExtend(guid)
+	local aura = self.aura_targets[guid]
+	if not aura then
+		return
+	end
+	local main = self:GetMainAura()
+	if not main then
+		return
+	end
+	if Player.time > main.cf_extend_time then
+		if main.cf_extends >= 8 then
+			return -- after 8 Charred Flesh extensions, Fiery Brand can't be extended again
+		end
+		main.cf_extend_time = Player.time
+		main.cf_extends = main.cf_extends + 1
+	end
+	aura.expires = aura.expires + (CharredFlesh.rank * 0.25)
 end
 
 function FieryBrand:AnyRemainsUnder(seconds)
@@ -1670,6 +1729,9 @@ end
 
 function Fracture:CastSuccess(...)
 	Ability.CastSuccess(self, ...)
+	if Recrimination.known and Recrimination:Up() then
+		FieryBrand.recrimination_trigger = true
+	end
 	SoulFragments:Spawn(2)
 end
 
@@ -1803,7 +1865,7 @@ actions+=/felblade
 		return SpiritBomb
 	end
 	if SoulCleave:Usable() and (not self.pooling_for_fel_devastation or Player.fury.current >= (FelDevastation:Cost() + SoulCleave:Cost())) and (
-		(Player.enemies <= 1 and (not fiery_demise_fiery_brand_is_ticking_on_current_target or self.soul_fragments <= 1) and (Player.fury.deficit <= Player.filler_fury or self.soul_fragments >= 3 or SoulCleave:Previous())) or
+		(Player.enemies <= 1 and (not self.fiery_demise_fiery_brand_is_ticking_on_current_target or self.soul_fragments <= 1)) or
 		(Player.enemies > 1 and self.soul_fragments <= 1)
 	) then
 		return SoulCleave
@@ -1817,17 +1879,11 @@ actions+=/felblade
 	if ChaosFragments.known and ChaosNova:Usable() and Player.enemies >= 3 and self.soul_fragments <= 1 and Target.stunnable then
 		UseCooldown(ChaosNova)
 	end
-	if SoulCleave:Usable() and Recrimination.known and self.fiery_demise_fiery_brand_is_ticking_on_current_target and self.soul_fragments <= 1 and Recrimination:Up() then
-		return SoulCleave
-	end
 	if Fracture:Usable() then
 		return Fracture
 	end
 	if Shear:Usable() then
 		return Shear
-	end
-	if SoulCleave:Usable() and Player.enemies <= 1 then
-		return SoulCleave
 	end
 	if ThrowGlaiveV:Usable() then
 		return ThrowGlaiveV
