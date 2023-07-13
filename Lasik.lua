@@ -1894,7 +1894,7 @@ actions+=/felblade
 end
 
 APL[SPEC.VENGEANCE].defensives = function(self)
-	if DemonSpikes:Usable() and DemonSpikes:Down() and (DemonSpikes:Charges() == DemonSpikes:MaxCharges() or (not Player.meta_active and (not CalcifiedSpikes.known or CalcifiedSpikes:Remains() < 8))) then
+	if DemonSpikes:Usable() and DemonSpikes:Down() and Player:UnderAttack() and (DemonSpikes:Charges() == DemonSpikes:MaxCharges() or (not Player.meta_active and (not CalcifiedSpikes.known or CalcifiedSpikes:Remains() < 8))) then
 		return UseExtra(DemonSpikes)
 	end
 	if MetamorphosisV:Usable() and not Player.meta_active and self.fiery_demise_fiery_brand_is_not_ticking_on_current_target and (not Demonic.known or not FelDevastation:Ready()) and (Player.health.pct <= 60 or (DemonSpikes:Down() and not DemonSpikes:Ready())) then
