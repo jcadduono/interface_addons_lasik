@@ -976,6 +976,7 @@ ChaosNova.fury_cost = 30
 local CollectiveAnguish = Ability:Add(390152, false, true)
 local CycleOfBinding = Ability:Add(389718, false, true)
 local Demonic = Ability:Add(213410, false, true)
+local DownInFlames = Ability:Add(389732, false, true)
 local ElysianDecree = Ability:Add(390163, false, true)
 ElysianDecree.buff_duration = 2
 ElysianDecree.cooldown_duration = 60
@@ -1124,6 +1125,7 @@ local SoulCrush = Ability:Add(389985, false, true)
 local SpiritBomb = Ability:Add(247454, false, true)
 SpiritBomb.fury_cost = 40
 SpiritBomb:AutoAoe(true)
+local SoulSigils = Ability:Add(395446, false, true)
 local ThrowGlaiveV = Ability:Add(204157, false, true)
 ThrowGlaiveV.cooldown_duration = 3
 ThrowGlaiveV.hasted_cooldown = true
@@ -1719,9 +1721,9 @@ function SoulFragments:CastSuccess()
 	end
 end
 
-function SoulFragments:Spawn(amount)
+function SoulFragments:Spawn(amount, delay)
 	for i = 1, amount do
-		self.spawning[#self.spawning + 1] = Player.time
+		self.spawning[#self.spawning + 1] = Player.time + (delay or 0)
 	end
 end
 
@@ -1759,7 +1761,7 @@ end
 
 function ImmolationAura:CastSuccess(...)
 	Ability.CastSuccess(self, ...)
-	if Fallout.known then
+	if SoulFragments.known and Fallout.known then
 		local fragments = min(5, floor(Player.enemies * 0.5))
 		if fragments > 0 then
 			SoulFragments:Spawn(fragments)
@@ -1771,6 +1773,23 @@ function BulkExtraction:CastSuccess(...)
 	Ability.CastSuccess(self, ...)
 	SoulFragments:Spawn(min(5, Player.enemies))
 end
+
+function ElysianDecree:CastSuccess(...)
+	Ability.CastSuccess(self, ...)
+	if SoulFragments.known then
+		SoulFragments:Spawn(3 + (SoulSigils.known and 1 or 0), self:Duration())
+	end
+end
+
+function SigilOfFlame:CastSuccess(...)
+	Ability.CastSuccess(self, ...)
+	if SoulFragments.known and SoulSigils.known then
+		SoulFragments:Spawn(1, self:Duration())
+	end
+end
+SigilOfChains.CastSuccess = SigilOfFlame.CastSuccess
+SigilOfMisery.CastSuccess = SigilOfFlame.CastSuccess
+SigilOfSilence.CastSuccess = SigilOfFlame.CastSuccess
 
 -- End Ability Modifications
 
