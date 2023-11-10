@@ -388,7 +388,8 @@ Player.target_modes = {
 		{2, '2'},
 		{3, '3'},
 		{4, '4'},
-		{5, '5+'},
+		{5, '5'},
+		{6, '6+'},
 	},
 }
 
@@ -964,11 +965,20 @@ Torment.cooldown_duration = 8
 Torment.triggers_gcd = false
 Torment.off_gcd = true
 ------ Talents
+local BulkExtraction = Ability:Add(320341, false, true)
+BulkExtraction.cooldown_duration = 60
+local BurningBlood = Ability:Add(390213, false, true)
+local ChainsOfAnger = Ability:Add(389715, false, true)
 local ChaosNova = Ability:Add(179057, false, true)
 ChaosNova.buff_duration = 2
 ChaosNova.cooldown_duration = 60
 ChaosNova.fury_cost = 30
+local CollectiveAnguish = Ability:Add(390152, false, true)
+local CycleOfBinding = Ability:Add(389718, false, true)
 local Demonic = Ability:Add(213410, false, true)
+local ElysianDecree = Ability:Add(390163, false, true)
+ElysianDecree.buff_duration = 2
+ElysianDecree.cooldown_duration = 60
 local Felblade = Ability:Add(232893, false, true, 213243)
 Felblade.cooldown_duration = 15
 Felblade.hasted_cooldown = true
@@ -976,9 +986,12 @@ local FelEruption = Ability:Add(211881, false, true)
 FelEruption.buff_duration = 4
 FelEruption.cooldown_duration =  30
 FelEruption.fury_cost = 10
+local FocusedCleave = Ability:Add(343207, false, true)
 local SigilOfChains = Ability:Add(202138, false, true)
 SigilOfChains.cooldown_duration = 90
 SigilOfChains.buff_duration = 2
+SigilOfChains.dot = Ability:Add(204843, false, true)
+SigilOfChains.dot.buff_duration = 6
 local SigilOfFlame = Ability:Add(204596, false, true)
 SigilOfFlame.cooldown_duration = 30
 SigilOfFlame.buff_duration = 2
@@ -989,9 +1002,14 @@ SigilOfFlame.dot:AutoAoe(false, 'apply')
 local SigilOfMisery = Ability:Add(207684, false, true)
 SigilOfMisery.cooldown_duration = 90
 SigilOfMisery.buff_duration = 2
+SigilOfMisery.dot = Ability:Add(207685, false, true)
+SigilOfMisery.dot.buff_duration = 20
 local SigilOfSilence = Ability:Add(202137, false, true)
 SigilOfSilence.cooldown_duration = 60
 SigilOfSilence.buff_duration = 2
+SigilOfSilence.dot = Ability:Add(204490, false, true)
+SigilOfSilence.dot.buff_duration = 6
+local StokeTheFlames = Ability:Add(393827, false, true)
 local QuickenedSigils = Ability:Add(209281, true, true)
 local TheHunt = Ability:Add(370965, true, true)
 TheHunt.cooldown_duration = 90
@@ -1062,9 +1080,6 @@ DemonSpikes.hasted_cooldown = true
 DemonSpikes.requires_charge = true
 DemonSpikes.triggers_gcd = false
 DemonSpikes.off_gcd = true
-local ElysianDecree = Ability:Add(306830, false, true)
-ElysianDecree.cooldown_duration = 60
-ElysianDecree.check_usable = true
 local Fallout = Ability:Add(227174, false, true)
 local FelDevastation = Ability:Add(212084, false, true)
 FelDevastation.fury_cost = 50
@@ -1682,6 +1697,7 @@ end
 SoulFragments.spawning = {}
 SoulFragments.current = 0
 SoulFragments.incoming = 0
+SoulFragments.total = 0
 
 function SoulFragments:Update()
 	local count = 0
@@ -1694,6 +1710,7 @@ function SoulFragments:Update()
 	end
 	self.current = self.buff:Stack()
 	self.incoming = count
+	self.total = self.current + self.incoming
 end
 
 function SoulFragments:CastSuccess()
@@ -1743,11 +1760,16 @@ end
 function ImmolationAura:CastSuccess(...)
 	Ability.CastSuccess(self, ...)
 	if Fallout.known then
-		local fragments = floor(Player.enemies * 0.5)
+		local fragments = min(5, floor(Player.enemies * 0.5))
 		if fragments > 0 then
 			SoulFragments:Spawn(fragments)
 		end
 	end
+end
+
+function BulkExtraction:CastSuccess(...)
+	Ability.CastSuccess(self, ...)
+	SoulFragments:Spawn(min(5, Player.enemies))
 end
 
 -- End Ability Modifications
@@ -1785,102 +1807,95 @@ APL[SPEC.VENGEANCE].Main = function(self)
 actions.precombat=flask
 actions.precombat+=/augmentation
 actions.precombat+=/food
+actions.precombat+=/snapshot_stats
 actions.precombat+=/sigil_of_flame
-actions.precombat+=/immolation_aura,if=active_enemies=1|!talent.fallout
+actions.precombat+=/immolation_aura
 ]]
-		if not Player:InArenaOrBattleground() then
-
+		if SigilOfFlame:Usable() and not SigilOfFlame:Placed() then
+			return SigilOfFlame
 		end
-	else
 	end
 --[[
-actions=auto_attack
+actions=variable,name=trinket_1_buffs,value=trinket.1.has_use_buff|(trinket.1.has_buff.strength|trinket.1.has_buff.mastery|trinket.1.has_buff.versatility|trinket.1.has_buff.haste|trinket.1.has_buff.crit)
+actions+=/variable,name=trinket_2_buffs,value=trinket.2.has_use_buff|(trinket.2.has_buff.strength|trinket.2.has_buff.mastery|trinket.2.has_buff.versatility|trinket.2.has_buff.haste|trinket.2.has_buff.crit)
+actions+=/variable,name=trinket_1_exclude,value=trinket.1.is.ruby_whelp_shell|trinket.1.is.whispering_incarnate_icon
+actions+=/variable,name=trinket_2_exclude,value=trinket.2.is.ruby_whelp_shell|trinket.2.is.whispering_incarnate_icon
+actions+=/variable,name=dont_spend_fury,op=setif,condition=(cooldown.fel_devastation.remains<(action.soul_cleave.execute_time+gcd.remains))&fury<50,value=1,value_else=0
+actions+=/auto_attack
 actions+=/disrupt,if=target.debuff.casting.react
 actions+=/infernal_strike,use_off_gcd=1
 actions+=/demon_spikes,use_off_gcd=1,if=!buff.demon_spikes.up&!cooldown.pause_action.remains
-actions+=/metamorphosis
-actions+=/fel_devastation,if=!talent.fiery_demise.enabled
-actions+=/fiery_brand,if=!talent.fiery_demise.enabled&!dot.fiery_brand.ticking
-actions+=/bulk_extraction
-actions+=/potion
-actions+=/use_item,name=dragonfire_bomb_dispenser,use_off_gcd=1,if=fight_remains<20|charges=3
-actions+=/use_item,name=elementium_pocket_anvil,use_off_gcd=1
-actions+=/use_item,slot=trinket1
-actions+=/use_item,slot=trinket2
-actions+=/variable,name=the_hunt_on_cooldown,value=talent.the_hunt&cooldown.the_hunt.remains|!talent.the_hunt
-actions+=/variable,name=elysian_decree_on_cooldown,value=talent.elysian_decree&cooldown.elysian_decree.remains|!talent.elysian_decree
-actions+=/variable,name=soul_carver_on_cooldown,value=talent.soul_carver&cooldown.soul_carver.remains|!talent.soul_carver
-actions+=/variable,name=fel_devastation_on_cooldown,value=talent.fel_devastation&cooldown.fel_devastation.remains|!talent.fel_devastation
-actions+=/variable,name=fiery_demise_fiery_brand_is_ticking_on_current_target,value=talent.fiery_brand&talent.fiery_demise&dot.fiery_brand.ticking
-actions+=/variable,name=fiery_demise_fiery_brand_is_not_ticking_on_current_target,value=talent.fiery_brand&((talent.fiery_demise&!dot.fiery_brand.ticking)|!talent.fiery_demise)
-actions+=/variable,name=fiery_demise_fiery_brand_is_ticking_on_any_target,value=talent.fiery_brand&talent.fiery_demise&active_dot.fiery_brand_dot
-actions+=/variable,name=fiery_demise_fiery_brand_is_not_ticking_on_any_target,value=talent.fiery_brand&((talent.fiery_demise&!active_dot.fiery_brand_dot)|!talent.fiery_demise)
-actions+=/variable,name=spirit_bomb_soul_fragments,op=setif,value=variable.spirit_bomb_soul_fragments_in_meta,value_else=variable.spirit_bomb_soul_fragments_not_in_meta,condition=buff.metamorphosis.up
-actions+=/variable,name=cooldown_frailty_requirement,op=setif,value=variable.cooldown_frailty_requirement_aoe,value_else=variable.cooldown_frailty_requirement_st,condition=talent.spirit_bomb&(spell_targets.spirit_bomb>1|variable.fiery_demise_fiery_brand_is_ticking_on_any_target)
-actions+=/the_hunt,if=variable.fiery_demise_fiery_brand_is_not_ticking_on_current_target&debuff.frailty.stack>=variable.cooldown_frailty_requirement
-actions+=/elysian_decree,if=variable.fiery_demise_fiery_brand_is_not_ticking_on_current_target&debuff.frailty.stack>=variable.cooldown_frailty_requirement
-actions+=/soul_carver,if=!talent.fiery_demise&soul_fragments<=3&debuff.frailty.stack>=variable.cooldown_frailty_requirement
-actions+=/soul_carver,if=variable.fiery_demise_fiery_brand_is_ticking_on_current_target&soul_fragments<=3&debuff.frailty.stack>=variable.cooldown_frailty_requirement
-actions+=/fel_devastation,if=variable.fiery_demise_fiery_brand_is_ticking_on_current_target&dot.fiery_brand.remains<3
-actions+=/fiery_brand,if=variable.fiery_demise_fiery_brand_is_not_ticking_on_any_target&variable.the_hunt_on_cooldown&variable.elysian_decree_on_cooldown&((talent.soul_carver&(cooldown.soul_carver.up|cooldown.soul_carver.remains<10))|(talent.fel_devastation&(cooldown.fel_devastation.up|cooldown.fel_devastation.remains<10)))
-actions+=/immolation_aura,if=talent.fiery_demise&variable.fiery_demise_fiery_brand_is_ticking_on_any_target
-actions+=/sigil_of_flame,if=talent.fiery_demise&variable.fiery_demise_fiery_brand_is_ticking_on_any_target
-actions+=/spirit_bomb,if=soul_fragments>=variable.spirit_bomb_soul_fragments&(spell_targets>1|variable.fiery_demise_fiery_brand_is_ticking_on_any_target)
-actions+=/soul_cleave,if=(soul_fragments<=1&spell_targets>1)|spell_targets=1
-actions+=/sigil_of_flame
-actions+=/immolation_aura
-actions+=/fracture
-actions+=/shear
-actions+=/throw_glaive
-actions+=/felblade
+actions+=/metamorphosis,use_off_gcd=1
+actions+=/potion,use_off_gcd=1
+actions+=/call_action_list,name=externals
+actions+=/call_action_list,name=trinkets
+actions+=/call_action_list,name=fiery_demise,if=talent.fiery_demise&active_dot.fiery_brand>0
+actions+=/call_action_list,name=maintenance
+actions+=/run_action_list,name=single_target,if=active_enemies<=1
+actions+=/run_action_list,name=small_aoe,if=active_enemies>1&active_enemies<=5
+actions+=/run_action_list,name=big_aoe,if=active_enemies>=6
 ]]
-	self.soul_fragments = SoulFragments.current + SoulFragments.incoming
-	self.the_hunt_on_cooldown = not TheHunt.known or not TheHunt:Ready()
-	self.elysian_decree_on_cooldown = not ElysianDecree.known or not ElysianDecree:Ready()
-	self.soul_carver_on_cooldown = not SoulCarver.known or not SoulCarver:Ready()
-	self.fel_devastation_on_cooldown = not FelDevastation.known or not FelDevastation:Ready()
-	self.fiery_demise_fiery_brand_is_ticking_on_current_target = FieryBrand.known and FieryDemise.known and FieryBrand:Up()
-	self.fiery_demise_fiery_brand_is_not_ticking_on_current_target = FieryBrand.known and (not FieryDemise.known or FieryBrand:Down())
-	self.fiery_demise_fiery_brand_is_ticking_on_any_target = FieryBrand.known and FieryDemise.known and FieryBrand:Ticking() > 0
-	self.fiery_demise_fiery_brand_is_not_ticking_on_any_target = FieryBrand.known and (not FieryDemise.known or FieryBrand:Ticking() == 0)
-	self.spirit_bomb_soul_fragments = Player.meta_active and Player.spirit_bomb_soul_fragments_in_meta or Player.spirit_bomb_soul_fragments_not_in_meta
-	self.cooldown_frailty_requirement = (SpiritBomb.known and (Player.enemies > 1 or self.fiery_demise_fiery_brand_is_ticking_on_any_target)) and Player.cooldown_frailty_requirement_aoe or Player.cooldown_frailty_requirement_st
-	self.pooling_for_fel_devastation = FelDevastation.known and Player.meta_remains < Player.gcd and self.fiery_demise_fiery_brand_is_ticking_on_any_target and FelDevastation:Ready(Player.gcd) and FieryBrand:AnyRemainsUnder(3 + Player.gcd)
-
+	self.dont_spend_fury = FelDevastation:Ready(Player.gcd * 2) and Player.fury.current < 50
+	self.soul_cleave_condition = not SpiritBomb.known or not (SoulFragments.incoming > 1 or ElysianDecree:Placed())
 	self:defensives()
-	self:cooldowns()
+	self:trinkets()
+	local apl
+	if FieryDemise.known and FieryBrand:Ticking() > 0 then
+		apl = self:fiery_demise()
+		if apl then return apl end
+	end
+	apl = self:maintenance()
+	if apl then return apl end
+	if Player.enemies >= 6 then
+		return self:big_aoe()
+	elseif Player.enemies > 1 then
+		return self:small_aoe()
+	end
+	return self:single_target()
+end
 
-	if ImmolationAura:Usable() and FieryDemise.known and self.fiery_demise_fiery_brand_is_ticking_on_any_target then
-		return ImmolationAura
+APL[SPEC.VENGEANCE].defensives = function(self)
+	if DemonSpikes:Usable() and DemonSpikes:Down() and Player:UnderAttack() and (DemonSpikes:Charges() == DemonSpikes:MaxCharges() or (not Player.meta_active and (not CalcifiedSpikes.known or CalcifiedSpikes:Remains() < 8))) then
+		return UseExtra(DemonSpikes)
 	end
-	if SigilOfFlame:Usable() and FieryDemise.known and self.fiery_demise_fiery_brand_is_ticking_on_any_target then
-		return SigilOfFlame
+	if InfernalStrike:Usable() and InfernalStrike:ChargesFractional() >= 1.5 then
+		return UseExtra(InfernalStrike)
 	end
-	if Recrimination.known and self.fiery_demise_fiery_brand_is_not_ticking_on_any_target and Recrimination:Up() then
-		if Fracture:Usable() and self.soul_fragments <= 3 and Fracture:WontCapFury() then
-			return Fracture
-		end
-		if Shear:Usable() and self.soul_fragments <= 4 and Shear:WontCapFury() then
-			return Shear
-		end
+	if MetamorphosisV:Usable() and not Player.meta_active and (not Demonic.known or not FelDevastation:Ready()) and (Player.health.pct <= 60 or (DemonSpikes:Down() and not DemonSpikes:Ready())) then
+		return UseExtra(MetamorphosisV)
 	end
-	if SpiritBomb:Usable() and self.soul_fragments >= self.spirit_bomb_soul_fragments and (Player.enemies > 1 or self.fiery_demise_fiery_brand_is_ticking_on_any_target) then
+end
+
+APL[SPEC.VENGEANCE].big_aoe = function(self)
+--[[
+actions.big_aoe=fel_devastation,if=talent.collective_anguish.enabled|talent.stoke_the_flames.enabled
+actions.big_aoe+=/the_hunt
+actions.big_aoe+=/elysian_decree
+actions.big_aoe+=/fel_devastation
+actions.big_aoe+=/soul_carver
+actions.big_aoe+=/spirit_bomb,if=soul_fragments>=4
+actions.big_aoe+=/fracture
+actions.big_aoe+=/shear
+actions.big_aoe+=/soul_cleave,if=soul_fragments<1
+actions.big_aoe+=/call_action_list,name=filler
+]]
+	if FelDevastation:Usable() and Player.meta_remains < 8 and (CollectiveAnguish.known or (StokeTheFlames.known and BurningBlood.known)) then
+		UseCooldown(FelDevastation)
+	end
+	if TheHunt:Usable() then
+		UseCooldown(TheHunt)
+	end
+	if ElysianDecree:Usable() and not ElysianDecree:Placed() and SoulFragments.total <= 3 then
+		UseCooldown(ElysianDecree)
+	end
+	if FelDevastation:Usable() and Player.meta_remains < 8 then
+		UseCooldown(FelDevastation)
+	end
+	if SoulCarver:Usable() then
+		UseCooldown(SoulCarver)
+	end
+	if SpiritBomb:Usable() and SoulFragments.total >= 4 then
 		return SpiritBomb
-	end
-	if SoulCleave:Usable() and (not self.pooling_for_fel_devastation or Player.fury.current >= (FelDevastation:Cost() + SoulCleave:Cost())) and (
-		(Player.enemies <= 1 and (not self.fiery_demise_fiery_brand_is_ticking_on_current_target or self.soul_fragments <= 1)) or
-		(Player.enemies > 1 and self.soul_fragments <= 1)
-	) then
-		return SoulCleave
-	end
-	if SigilOfFlame:Usable() then
-		return SigilOfFlame
-	end
-	if ImmolationAura:Usable() then
-		return ImmolationAura
-	end
-	if ChaosFragments.known and ChaosNova:Usable() and Player.enemies >= 3 and self.soul_fragments <= 1 and Target.stunnable then
-		UseCooldown(ChaosNova)
 	end
 	if Fracture:Usable() then
 		return Fracture
@@ -1888,48 +1903,238 @@ actions+=/felblade
 	if Shear:Usable() then
 		return Shear
 	end
+	if SoulCleave:Usable() and SoulFragments.total < 1 and self.soul_cleave_condition then
+		return SoulCleave
+	end
+	return self:filler()
+end
+
+APL[SPEC.VENGEANCE].fiery_demise = function(self)
+--[[
+actions.fiery_demise=immolation_aura
+actions.fiery_demise+=/sigil_of_flame
+actions.fiery_demise+=/felblade,if=(cooldown.fel_devastation.remains<=(execute_time+gcd.remains))&fury<50
+actions.fiery_demise+=/fel_devastation
+actions.fiery_demise+=/soul_carver
+actions.fiery_demise+=/spirit_bomb,if=spell_targets=1&soul_fragments>=5
+actions.fiery_demise+=/spirit_bomb,if=spell_targets>1&spell_targets<=5&soul_fragments>=4
+actions.fiery_demise+=/spirit_bomb,if=spell_targets>=6&soul_fragments>=3
+actions.fiery_demise+=/the_hunt
+actions.fiery_demise+=/elysian_decree
+actions.fiery_demise+=/soul_cleave,if=fury.deficit<=30&!variable.dont_spend_fury
+]]
+	if Fallout.known and SpiritBomb:Usable() and SoulFragments.total >= 3 and Player.enemies >= 3 and ImmolationAura:Ready(Player.gcd) then
+		return SpiritBomb
+	end
+	if ImmolationAura:Usable() then
+		return ImmolationAura
+	end
+	if SigilOfFlame:Usable() and not SigilOfFlame:Placed() and (SigilOfFlame:ChargesFractional() >= 1.8 or SigilOfFlame.dot:Refreshable()) then
+		return SigilOfFlame
+	end
+	if Felblade:Usable() and Player.fury.current < 50 and FelDevastation:Ready(Player.gcd * 2) then
+		return Felblade
+	end
+	if FelDevastation:Usable() and Player.meta_remains < 8 then
+		UseCooldown(FelDevastation)
+	end
+	if SoulCarver:Usable() then
+		UseCooldown(SoulCarver)
+	end
+	if SpiritBomb:Usable() and (
+		(Player.enemies <= 1 and SoulFragments.total >= 5) or
+		(between(Player.enemies, 2, 5) and SoulFragments.total >= 4) or
+		(Player.enemies >= 6 and SoulFragments.total >= 3)
+	) then
+		return SpiritBomb
+	end
+	if TheHunt:Usable() then
+		UseCooldown(TheHunt)
+	end
+	if ElysianDecree:Usable() and not ElysianDecree:Placed() and SoulFragments.total <= 3 then
+		UseCooldown(ElysianDecree)
+	end
+	if SoulCleave:Usable() and Player.fury.deficit <= 30 and not self.dont_spend_fury and self.soul_cleave_condition then
+		return SoulCleave
+	end
+end
+
+APL[SPEC.VENGEANCE].filler = function(self)
+--[[
+actions.filler=sigil_of_chains,if=talent.cycle_of_binding.enabled&talent.sigil_of_chains.enabled
+actions.filler+=/sigil_of_misery,if=talent.cycle_of_binding.enabled&talent.sigil_of_misery.enabled
+actions.filler+=/sigil_of_silence,if=talent.cycle_of_binding.enabled&talent.sigil_of_silence.enabled
+actions.filler+=/throw_glaive
+]]
+	if CycleOfBinding.known then
+		if SigilOfChains:Usable() and not SigilOfChains:Placed() and SigilOfChains.dot:Down() then
+			UseCooldown(SigilOfChains)
+		end
+		if SigilOfMisery:Usable() and not SigilOfMisery:Placed() and SigilOfMisery.dot:Down()  then
+			UseCooldown(SigilOfMisery)
+		end
+		if SigilOfSilence:Usable() and not SigilOfSilence:Placed() and SigilOfSilence.dot:Down()  then
+			UseCooldown(SigilOfSilence)
+		end
+	end
+	if ChaosFragments.known and ChaosNova:Usable() and Player.enemies >= 3 and self.soul_fragments <= 1 and Target.stunnable then
+		UseCooldown(ChaosNova)
+	end
 	if ThrowGlaiveV:Usable() then
 		return ThrowGlaiveV
 	end
-	if Felblade:Usable() then
+end
+
+APL[SPEC.VENGEANCE].maintenance = function(self)
+--[[
+actions.maintenance=fiery_brand,if=(active_dot.fiery_brand=0&(cooldown.sigil_of_flame.remains<(execute_time+gcd.remains)|cooldown.soul_carver.remains<(execute_time+gcd.remains)|cooldown.fel_devastation.remains<(execute_time+gcd.remains)))|(talent.down_in_flames&full_recharge_time<(execute_time+gcd.remains))
+actions.maintenance+=/sigil_of_flame
+actions.maintenance+=/spirit_bomb,if=soul_fragments>=5
+actions.maintenance+=/immolation_aura
+actions.maintenance+=/bulk_extraction,if=prev_gcd.1.spirit_bomb
+actions.maintenance+=/felblade,if=fury.deficit>=40
+actions.maintenance+=/fracture,if=(cooldown.fel_devastation.remains<=(execute_time+gcd.remains))&fury<50
+actions.maintenance+=/shear,if=(cooldown.fel_devastation.remains<=(execute_time+gcd.remains))&fury<50
+actions.maintenance+=/spirit_bomb,if=fury.deficit<30&((spell_targets>=2&soul_fragments>=5)|(spell_targets>=6&soul_fragments>=4))&!variable.dont_spend_fury
+actions.maintenance+=/soul_cleave,if=fury.deficit<30&soul_fragments<=3&!variable.dont_spend_fury
+]]
+	if FieryBrand:Usable() and (
+		(FieryBrand:Ticking() == 0 and (SigilOfFlame:Ready(Player.gcd * 2) or SoulCarver:Ready(Player.gcd * 2) or FelDevastation:Ready(Player.gcd))) or
+		(DownInFlames.known and FieryBrand:FullRechargeTime() < (Player.gcd * 2))
+	) then
+		UseCooldown(FieryBrand)
+	end
+	if SigilOfFlame:Usable() and not SigilOfFlame:Placed() and (SigilOfFlame:ChargesFractional() >= 1.8 or SigilOfFlame.dot:Refreshable()) then
+		return SigilOfFlame
+	end
+	if SpiritBomb:Usable() and SoulFragments.total >= 5 or (Fallout.known and SoulFragments.total >= 3 and Player.enemies >= 3 and ImmolationAura:Ready(Player.gcd)) then
+		return SpiritBomb
+	end
+	if ImmolationAura:Usable() and (not Fallout.known or SpiritBomb:Previous() or Player.enemies <= 3 or SoulFragments.total <= 3) then
+		return ImmolationAura
+	end
+	if BulkExtraction:Usable() and SpiritBomb:Previous() then
+		UseCooldown(BulkExtraction)
+	end
+	if Felblade:Usable() and Player.fury.deficit >= 40 then
 		return Felblade
 	end
+	if Fracture:Usable() and Player.fury.current < 50 and FelDevastation:Ready(Player.gcd * 2) then
+		return Fracture
+	end
+	if Shear:Usable() and Player.fury.current < 50 and FelDevastation:Ready(Player.gcd * 2) then
+		return Shear
+	end
+	if SpiritBomb:Usable() and Player.fury.deficit < 30 and not self.dont_spend_fury and (
+		(Player.enemies >= 2 and SoulFragments.total >= 5) or
+		(Player.enemies >= 6 and SoulFragments.total >= 4)
+	) then
+		return SpiritBomb
+	end
+	if SoulCleave:Usable() and Player.fury.deficit < 30 and SoulFragments.total <= 3 and not self.dont_spend_fury and self.soul_cleave_condition then
+		return SoulCleave
+	end
 end
 
-APL[SPEC.VENGEANCE].defensives = function(self)
-	if DemonSpikes:Usable() and DemonSpikes:Down() and Player:UnderAttack() and (DemonSpikes:Charges() == DemonSpikes:MaxCharges() or (not Player.meta_active and (not CalcifiedSpikes.known or CalcifiedSpikes:Remains() < 8))) then
-		return UseExtra(DemonSpikes)
+APL[SPEC.VENGEANCE].single_target = function(self)
+--[[
+actions.single_target=the_hunt
+actions.single_target+=/soul_carver
+actions.single_target+=/fel_devastation,if=talent.collective_anguish.enabled|(talent.stoke_the_flames.enabled&talent.burning_blood.enabled)
+actions.single_target+=/elysian_decree
+actions.single_target+=/fel_devastation
+actions.single_target+=/soul_cleave,if=talent.focused_cleave&!variable.dont_spend_fury
+actions.single_target+=/fracture
+actions.single_target+=/shear
+actions.single_target+=/soul_cleave,if=!variable.dont_spend_fury
+actions.single_target+=/call_action_list,name=filler
+]]
+	if TheHunt:Usable() then
+		UseCooldown(TheHunt)
 	end
-	if MetamorphosisV:Usable() and not Player.meta_active and self.fiery_demise_fiery_brand_is_not_ticking_on_current_target and (not Demonic.known or not FelDevastation:Ready()) and (Player.health.pct <= 60 or (DemonSpikes:Down() and not DemonSpikes:Ready())) then
-		return UseExtra(MetamorphosisV)
+	if SoulCarver:Usable() then
+		UseCooldown(SoulCarver)
 	end
+	if FelDevastation:Usable() and Player.meta_remains < 8 and (CollectiveAnguish.known or (StokeTheFlames.known and BurningBlood.known)) then
+		UseCooldown(FelDevastation)
+	end
+	if ElysianDecree:Usable() and not ElysianDecree:Placed() and SoulFragments.total <= 3 then
+		UseCooldown(ElysianDecree)
+	end
+	if FelDevastation:Usable() and Player.meta_remains < 8 then
+		UseCooldown(FelDevastation)
+	end
+	if FocusedCleave.known and SoulCleave:Usable() and not self.dont_spend_fury then
+		return SoulCleave
+	end
+	if Fracture:Usable() then
+		return Fracture
+	end
+	if Shear:Usable() then
+		return Shear
+	end
+	if SoulCleave:Usable() and not self.dont_spend_fury then
+		return SoulCleave
+	end
+	return self:filler()
 end
 
-APL[SPEC.VENGEANCE].cooldowns = function(self)
-	if InfernalStrike:Usable() and InfernalStrike:ChargesFractional() >= 2 then
-		UseExtra(InfernalStrike)
+APL[SPEC.VENGEANCE].small_aoe = function(self)
+--[[
+actions.small_aoe=the_hunt
+actions.small_aoe+=/fel_devastation,if=talent.collective_anguish.enabled|(talent.stoke_the_flames.enabled&talent.burning_blood.enabled)
+actions.small_aoe+=/elysian_decree
+actions.small_aoe+=/fel_devastation
+actions.small_aoe+=/soul_carver
+actions.small_aoe+=/spirit_bomb,if=soul_fragments>=5
+actions.small_aoe+=/soul_cleave,if=talent.focused_cleave&soul_fragments<=2
+actions.small_aoe+=/fracture
+actions.small_aoe+=/shear
+actions.small_aoe+=/soul_cleave,if=soul_fragments<=2
+actions.small_aoe+=/call_action_list,name=filler
+]]
+	if TheHunt:Usable() then
+		UseCooldown(TheHunt)
 	end
-	if Frailty:Stack() >= self.cooldown_frailty_requirement then
-		if InfernalStrike:Usable() and InfernalStrike:ChargesFractional() >= 1.5 then
-			UseExtra(InfernalStrike)
-		end
-		if TheHunt:Usable() and self.fiery_demise_fiery_brand_is_not_ticking_on_current_target and Frailty:Stack() >= self.cooldown_frailty_requirement then
-			return UseCooldown(TheHunt)
-		end
-		if ElysianDecree:Usable() and self.fiery_demise_fiery_brand_is_not_ticking_on_current_target and Frailty:Stack() >= self.cooldown_frailty_requirement then
-			return UseCooldown(ElysianDecree)
-		end
-		if SoulCarver:Usable() and (not FieryDemise.known or self.fiery_demise_fiery_brand_is_ticking_on_current_target) then
-			return UseCooldown(SoulCarver)
-		end
+	if FelDevastation:Usable() and Player.meta_remains < 8 and (CollectiveAnguish.known or (StokeTheFlames.known and BurningBlood.known)) then
+		UseCooldown(FelDevastation)
 	end
-	if FelDevastation:Usable() and Player.meta_remains < 8 and (Player.health.pct <= 30 or (self.fiery_demise_fiery_brand_is_ticking_on_any_target and (FieryBrand:AnyRemainsUnder(3) or (FieryBrand:ChargesFractional() >= 1.5 and FieryBrand:Ticking() >= Player.enemies))) or (not FieryDemise.known or (self.fiery_demise_fiery_brand_is_not_ticking_on_any_target and not FieryBrand:Ready(50 - (9 * DarkglareBoon.rank))))) then
-		return UseCooldown(FelDevastation)
+	if ElysianDecree:Usable() and not ElysianDecree:Placed() and SoulFragments.total <= 3 then
+		UseCooldown(ElysianDecree)
 	end
-	if FieryBrand:Usable() and (not Recrimination.known or Recrimination:Down()) and ((self.fiery_demise_fiery_brand_is_not_ticking_on_current_target and FieryBrand:ChargesFractional() >= 1.9) or (self.fiery_demise_fiery_brand_is_not_ticking_on_any_target and ((FelDevastation.known and FelDevastation:Ready(10) and Player.meta_remains < 8) or (self.the_hunt_on_cooldown and self.elysian_decree_on_cooldown and ((SoulCarver.known and SoulCarver:Ready(10)) or FieryBrand:ChargesFractional() >= 1.75))))) then
-		return UseCooldown(FieryBrand)
+	if FelDevastation:Usable() and Player.meta_remains < 8 then
+		UseCooldown(FelDevastation)
 	end
-	if Opt.trinket then
+	if SoulCarver:Usable() then
+		UseCooldown(SoulCarver)
+	end
+	if SpiritBomb:Usable() and SoulFragments.total >= 5 then
+		return SpiritBomb
+	end
+	if FocusedCleave.known and SoulCleave:Usable() and SoulFragments.total <= 2 and self.soul_cleave_condition then
+		return SoulCleave
+	end
+	if Fracture:Usable() then
+		return Fracture
+	end
+	if Shear:Usable() then
+		return Shear
+	end
+	if SoulCleave:Usable() and SoulFragments.total <= 2 then
+		return SoulCleave
+	end
+	return self:filler()
+end
+
+APL[SPEC.VENGEANCE].trinkets = function(self)
+--[[
+actions.trinkets=use_item,use_off_gcd=1,slot=trinket1,if=!variable.trinket_1_buffs
+actions.trinkets+=/use_item,use_off_gcd=1,slot=trinket2,if=!variable.trinket_2_buffs
+actions.trinkets+=/use_item,use_off_gcd=1,slot=main_hand,if=(variable.trinket_1_buffs|trinket.1.cooldown.remains)&(variable.trinket_2_buffs|trinket.2.cooldown.remains)
+actions.trinkets+=/use_item,use_off_gcd=1,slot=trinket1,if=variable.trinket_1_buffs&(buff.metamorphosis.up|cooldown.metamorphosis.remains>20)&(variable.trinket_2_exclude|trinket.2.cooldown.remains|!trinket.2.has_cooldown|variable.trinket_2_buffs)
+actions.trinkets+=/use_item,use_off_gcd=1,slot=trinket2,if=variable.trinket_2_buffs&(buff.metamorphosis.up|cooldown.metamorphosis.remains>20)&(variable.trinket_1_exclude|trinket.1.cooldown.remains|!trinket.1.has_cooldown|variable.trinket_1_buffs)
+]]
+	if Opt.trinket and (Player.meta_active or not MetamorphosisV:Ready(20)) then
 		if Trinket1:Usable() then
 			return UseCooldown(Trinket1)
 		elseif Trinket2:Usable() then
