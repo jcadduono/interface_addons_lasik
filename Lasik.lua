@@ -1068,6 +1068,7 @@ TrailOfRuin.tick_interval = 1
 local ChaosFragments = Ability:Add(320412, true, true)
 ---- Vengeance
 ------ Talents
+local AscendingFlame = Ability:Add(428603, false, true)
 local CalcifiedSpikes = Ability:Add(389720, true, true, 391171)
 CalcifiedSpikes.buff_duration = 12
 local CharredFlesh = Ability:Add(336639, false, true)
@@ -1948,7 +1949,11 @@ actions.fiery_demise+=/soul_cleave,if=fury.deficit<=30&!variable.dont_spend_fury
 	if ImmolationAura:Usable() then
 		return ImmolationAura
 	end
-	if SigilOfFlame:Usable() and not SigilOfFlame:Placed() and (SigilOfFlame:ChargesFractional() >= 1.8 or SigilOfFlame.dot:Refreshable()) then
+	if SigilOfFlame:Usable() and not SigilOfFlame:Placed() and (
+		SigilOfFlame:ChargesFractional() >= 1.8 or
+		SigilOfFlame.dot:Refreshable() or
+		(AscendingFlame.known and SigilOfFlame:ChargesFractional() >= 1.4 and Player.enemies >= 3)
+	) then
 		return SigilOfFlame
 	end
 	if Felblade:Usable() and Player.fury.current < 50 and FelDevastation:Ready(Player.gcd * 2) then
@@ -1962,7 +1967,7 @@ actions.fiery_demise+=/soul_cleave,if=fury.deficit<=30&!variable.dont_spend_fury
 	end
 	if SpiritBomb:Usable() and (
 		(Player.enemies <= 1 and SoulFragments.total >= 5) or
-		(between(Player.enemies, 2, 5) and SoulFragments.total >= 4) or
+		((between(Player.enemies, 2, 5) or (FieryDemise.known and FieryBrand:Ticking() > 0)) and SoulFragments.total >= 4) or
 		(Player.enemies >= 6 and SoulFragments.total >= 3)
 	) then
 		return SpiritBomb
@@ -2017,16 +2022,23 @@ actions.maintenance+=/shear,if=(cooldown.fel_devastation.remains<=(execute_time+
 actions.maintenance+=/spirit_bomb,if=fury.deficit<30&((spell_targets>=2&soul_fragments>=5)|(spell_targets>=6&soul_fragments>=4))&!variable.dont_spend_fury
 actions.maintenance+=/soul_cleave,if=fury.deficit<30&soul_fragments<=3&!variable.dont_spend_fury
 ]]
-	if FieryBrand:Usable() and (
+	if FieryBrand:Usable() and (Target.boss or Target.timeToDie > 10) and (
 		(FieryBrand:Ticking() == 0 and (SigilOfFlame:Ready(Player.gcd * 2) or SoulCarver:Ready(Player.gcd * 2) or FelDevastation:Ready(Player.gcd))) or
 		(DownInFlames.known and FieryBrand:FullRechargeTime() < (Player.gcd * 2))
 	) then
 		UseCooldown(FieryBrand)
 	end
-	if SigilOfFlame:Usable() and not SigilOfFlame:Placed() and (SigilOfFlame:ChargesFractional() >= 1.8 or SigilOfFlame.dot:Refreshable()) then
+	if SigilOfFlame:Usable() and not SigilOfFlame:Placed() and (
+		SigilOfFlame:ChargesFractional() >= 1.8 or
+		SigilOfFlame.dot:Remains() < 1 or
+		(AscendingFlame.known and SigilOfFlame:ChargesFractional() >= 1.4 and Player.enemies >= 3 and (not FieryDemise.known or not FieryBrand:Ready(4)))
+	) then
 		return SigilOfFlame
 	end
-	if SpiritBomb:Usable() and SoulFragments.total >= 5 or (Fallout.known and SoulFragments.total >= 3 and Player.enemies >= 3 and ImmolationAura:Ready(Player.gcd)) then
+	if SpiritBomb:Usable() and (
+		SoulFragments.total >= 5 or
+		(Fallout.known and SoulFragments.total >= 3 and Player.enemies >= 3 and ImmolationAura:Ready(Player.gcd))
+	) then
 		return SpiritBomb
 	end
 	if ImmolationAura:Usable() and (not Fallout.known or SpiritBomb:Previous() or Player.enemies <= 3 or SoulFragments.total <= 3) then
@@ -2127,7 +2139,10 @@ actions.small_aoe+=/call_action_list,name=filler
 	if SoulCarver:Usable() then
 		UseCooldown(SoulCarver)
 	end
-	if SpiritBomb:Usable() and SoulFragments.total >= 5 then
+	if SpiritBomb:Usable() and (
+		SoulFragments.total >= 5 or
+		((FieryDemise.known and FieryBrand:Ticking() > 0) and SoulFragments.total >= 4)
+	) then
 		return SpiritBomb
 	end
 	if FocusedCleave.known and SoulCleave:Usable() and SoulFragments.total <= 2 and self.soul_cleave_condition then
