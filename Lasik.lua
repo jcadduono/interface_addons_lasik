@@ -1030,9 +1030,11 @@ SigilOfSilence.dot = Ability:Add(204490, false, true)
 SigilOfSilence.dot.buff_duration = 6
 local StokeTheFlames = Ability:Add(393827, false, true)
 local QuickenedSigils = Ability:Add(209281, true, true)
-local TheHunt = Ability:Add(370965, true, true)
+local TheHunt = Ability:Add(370965, true, true, 370969)
 TheHunt.cooldown_duration = 90
-TheHunt.buff_duration = 30
+TheHunt.buff_duration = 6
+TheHunt.tick_interval = 2
+TheHunt.hasted_ticks = true
 local VengefulRetreat = Ability:Add(198793, false, true, 198813)
 VengefulRetreat.cooldown_duration = 25
 VengefulRetreat.triggers_gcd = false
@@ -1067,16 +1069,20 @@ DeathSweep.hasted_cooldown = true
 DeathSweep:AutoAoe(true)
 local DemonBlades = Ability:Add(203555, false, true, 203796)
 local DemonsBite = Ability:Add(162243, false, true)
-local EssenceBreak = Ability:Add(258860, false, true)
+local EssenceBreak = Ability:Add(258860, false, true, 320338)
 EssenceBreak.cooldown_duration = 40
+EssenceBreak.buff_duration = 4
 local EyeBeam = Ability:Add(198013, false, true, 198030)
 EyeBeam.buff_duration = 2
 EyeBeam.cooldown_duration = 40
 EyeBeam.fury_cost = 30
 EyeBeam:AutoAoe(true)
-local FelBarrage = Ability:Add(258925, false, true, 258926)
-FelBarrage.cooldown_duration = 60
-FelBarrage:AutoAoe()
+local FelBarrage = Ability:Add(258925, true, true)
+FelBarrage.cooldown_duration = 90
+FelBarrage.buff_duration = 8
+FelBarrage.fury_cost = 10
+FelBarrage.damage = Ability:Add(258926, false, true)
+FelBarrage.damage:AutoAoe(true)
 local FelRush = Ability:Add(195072, false, true, 192611)
 FelRush.cooldown_duration = 10
 FelRush.requires_charge = true
@@ -1112,7 +1118,8 @@ TacticalRetreat.buff_duration = 10
 local ThrowGlaive = Ability:Add(185123, false, true)
 ThrowGlaive.cooldown_duration = 9
 ThrowGlaive.hasted_cooldown = true
-ThrowGlaive:AutoAoe()
+ThrowGlaive.damage = Ability:Add(337819, false, true)
+ThrowGlaive.damage:AutoAoe()
 local TrailOfRuin = Ability:Add(258881, false, true, 258883)
 TrailOfRuin.buff_duration = 4
 TrailOfRuin.tick_interval = 1
@@ -1423,7 +1430,9 @@ function Player:UpdateKnown()
 	DeathSweep.known = BladeDance.known
 	Annihilation.known = ChaosStrike.known
 	ImmolationAura.damage.known = ImmolationAura.known
+	FelBarrage.damage.known = FelBarrage.known
 	SigilOfFlame.dot.known = SigilOfFlame.known
+	ThrowGlaive.damage.known = ThrowGlaive.known
 	if Fracture.known then
 		Shear.known = false
 	end
@@ -1645,6 +1654,14 @@ function ThrowGlaive:Cost()
 		cost = cost + 25
 	end
 	return max(0, cost)
+end
+
+function ThrowGlaive.damage:CastSuccess()
+	return -- ignored
+end
+
+function VengefulRetreat:Remains()
+	return max(0, 1.1 - (Player.time - self.last_used) - Player.execute_remains)
 end
 
 function FelEruption:Usable()
@@ -1905,10 +1922,9 @@ actions.precombat+=/arcane_torrent
 actions.precombat+=/use_item,name=algethar_puzzle_box
 actions.precombat+=/immolation_aura
 actions.precombat+=/sigil_of_flame,if=!equipped.algethar_puzzle_box
-
 ]]
 		if ImmolationAura:Usable() then
-			UseCooldown(ImmolationAura)
+			return ImmolationAura
 		end
 		if SigilOfFlame:Usable() then
 			return SigilOfFlame
@@ -2036,7 +2052,7 @@ actions+=/pick_up_fragment,mode=nearest,type=lesser,if=fury.deficit>=45&(!cooldo
 				((not EssenceBreak:Ready(15) or (EssenceBreak:Ready(Player.gcd) and (not Demonic.known or Player.meta_active or not EyeBeam:Ready(15 + (CycleOfHatred.known and 10 or 0))))) and (not Initiative.known or Initiative:Remains() < Player.gcd or Player:TimeInCombat() > 4)) or
 				((not EssenceBreak:Ready(15) or (EssenceBreak:Ready(Player.gcd * 2) and (Initiative:Remains() < Player.gcd and not self.holding_meta and EyeBeam:Ready(Player.gcd) and Player.fury.current > 30)) or not Demonic.known or Player.meta_active or not EyeBeam:Ready(15 + (CycleOfHatred.known and 10 or 0))) and (UnboundChaos:Down() or Inertia:Up()))
 		)) or
-		(Initiative.known and not EssenceBreak.known and Player:TimeInCombat() > 1 and (Initiative:Down() or (DeathSweep:Previous() and Metamorphosis:Ready() and ChaoticTransformation.known)))
+		(Initiative.known and not EssenceBreak.known and Player:TimeInCombat() > 1 and Initiative:Down())
 	) then
 		UseCooldown(VengefulRetreat)
 	end
@@ -2048,7 +2064,7 @@ actions+=/pick_up_fragment,mode=nearest,type=lesser,if=fury.deficit>=45&(!cooldo
 	end
 	if self.use_cds and EssenceBreak:Usable() and (
 		(Target.boss and Target.timeToDie < 6) or
-		((Player.meta_remains > (Player.gcd * 3) or not EyeBeam:Ready(10)) and (not TacticalRetreat.known or TacticalRetreat:Up() or Player:TimeInCombat() < 10) and (VengefulRetreat:Remains() < (Player.gcd * 0.5) or Player:TimeInCombat() > 0) and BladeDance:Ready(Player.gcd * 3.1))
+		((Player.meta_remains > (Player.gcd * 3) or not EyeBeam:Ready(10)) and (not TacticalRetreat.known or TacticalRetreat:Up() or Player:TimeInCombat() < 10) and BladeDance:Ready(Player.gcd * 3.1))
 	) then
 		UseCooldown(EssenceBreak)
 	end
@@ -2058,7 +2074,7 @@ actions+=/pick_up_fragment,mode=nearest,type=lesser,if=fury.deficit>=45&(!cooldo
 	if self.use_cds and TheHunt:Usable() and not self.in_essence_break then
 		UseCooldown(TheHunt)
 	end
-	if self.use_cds and FelBarrage:Usable() and Player.fury_deficit < 20 and not Player.meta_active then
+	if self.use_cds and FelBarrage:Usable() and Player.fury.deficit < 20 and not Player.meta_active then
 		UseCooldown(FelBarrage)
 	end
 	if GlaiveTempest:Usable() and (not self.in_essence_break or Player.enemies > 1) and not self.in_fel_barrage then
