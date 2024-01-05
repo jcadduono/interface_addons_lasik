@@ -45,7 +45,7 @@ end
 Lasik = {}
 local Opt -- use this as a local table reference to Lasik
 
-SLASH_Lasik1, SLASH_Lasik2 = '/lasik', '/l'
+SLASH_Lasik1, SLASH_Lasik2, SLASH_Lasik3 = '/l', '/la', '/lasik'
 BINDING_HEADER_LASIK = ADDON
 
 local function InitOpts()
@@ -672,6 +672,22 @@ function Ability:Cooldown()
 		return 0
 	end
 	return max(0, duration - (Player.ctime - start) - (self.off_gcd and 0 or Player.execute_remains))
+end
+
+function Ability:CooldownExpected()
+	if self.last_used == 0 then
+		return self:Cooldown()
+	end
+	if self.cooldown_duration > 0 and self:Casting() then
+		return self:CooldownDuration()
+	end
+	local start, duration = GetSpellCooldown(self.spellId)
+	if start == 0 then
+		return 0
+	end
+	local remains = duration - (Player.ctime - start)
+	local reduction = (Player.time - self.last_used) / (self:CooldownDuration() - remains)
+	return max(0, (remains * reduction) - Player.execute_remains)
 end
 
 function Ability:Stack()
@@ -1622,6 +1638,7 @@ function Target:Update()
 		lasikPanel:Show()
 		return true
 	end
+	UI:Disappear()
 end
 
 function Target:Stunned()
