@@ -1,9 +1,23 @@
 local ADDON = 'Lasik'
+local ADDON_PATH = 'Interface\\AddOns\\' .. ADDON .. '\\'
+
+BINDING_CATEGORY_LASIK = ADDON
+BINDING_NAME_LASIK_TARGETMORE = "Toggle Targets +"
+BINDING_NAME_LASIK_TARGETLESS = "Toggle Targets -"
+BINDING_NAME_LASIK_TARGET1 = "Set Targets to 1"
+BINDING_NAME_LASIK_TARGET2 = "Set Targets to 2"
+BINDING_NAME_LASIK_TARGET3 = "Set Targets to 3"
+BINDING_NAME_LASIK_TARGET4 = "Set Targets to 4"
+BINDING_NAME_LASIK_TARGET5 = "Set Targets to 5+"
+
+local function log(...)
+	print(ADDON, '-', ...)
+end
+
 if select(2, UnitClass('player')) ~= 'DEMONHUNTER' then
-	DisableAddOn(ADDON)
+	log('[|cFFFF0000Error|r]', 'Not loading because you are not the correct class! Consider disabling', ADDON, 'for this character.')
 	return
 end
-local ADDON_PATH = 'Interface\\AddOns\\' .. ADDON .. '\\'
 
 -- reference heavily accessed global functions from local scope for performance
 local min = math.min
@@ -23,6 +37,7 @@ local UnitHealth = _G.UnitHealth
 local UnitHealthMax = _G.UnitHealthMax
 local UnitPower = _G.UnitPower
 local UnitPowerMax = _G.UnitPowerMax
+local UnitSpellHaste = _G.UnitSpellHaste
 -- end reference global functions
 
 -- useful functions
@@ -46,7 +61,6 @@ Lasik = {}
 local Opt -- use this as a local table reference to Lasik
 
 SLASH_Lasik1, SLASH_Lasik2, SLASH_Lasik3 = '/l', '/la', '/lasik'
-BINDING_HEADER_LASIK = ADDON
 
 local function InitOpts()
 	local function SetDefaults(t, ref)
@@ -241,135 +255,6 @@ local Target = {
 	hostile = false,
 	estimated_range = 30,
 }
-
-local lasikPanel = CreateFrame('Frame', 'lasikPanel', UIParent)
-lasikPanel:SetPoint('CENTER', 0, -169)
-lasikPanel:SetFrameStrata('BACKGROUND')
-lasikPanel:SetSize(64, 64)
-lasikPanel:SetMovable(true)
-lasikPanel:SetUserPlaced(true)
-lasikPanel:RegisterForDrag('LeftButton')
-lasikPanel:SetScript('OnDragStart', lasikPanel.StartMoving)
-lasikPanel:SetScript('OnDragStop', lasikPanel.StopMovingOrSizing)
-lasikPanel:Hide()
-lasikPanel.icon = lasikPanel:CreateTexture(nil, 'BACKGROUND')
-lasikPanel.icon:SetAllPoints(lasikPanel)
-lasikPanel.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
-lasikPanel.border = lasikPanel:CreateTexture(nil, 'ARTWORK')
-lasikPanel.border:SetAllPoints(lasikPanel)
-lasikPanel.border:SetTexture(ADDON_PATH .. 'border.blp')
-lasikPanel.border:Hide()
-lasikPanel.dimmer = lasikPanel:CreateTexture(nil, 'BORDER')
-lasikPanel.dimmer:SetAllPoints(lasikPanel)
-lasikPanel.dimmer:SetColorTexture(0, 0, 0, 0.6)
-lasikPanel.dimmer:Hide()
-lasikPanel.swipe = CreateFrame('Cooldown', nil, lasikPanel, 'CooldownFrameTemplate')
-lasikPanel.swipe:SetAllPoints(lasikPanel)
-lasikPanel.swipe:SetDrawBling(false)
-lasikPanel.swipe:SetDrawEdge(false)
-lasikPanel.text = CreateFrame('Frame', nil, lasikPanel)
-lasikPanel.text:SetAllPoints(lasikPanel)
-lasikPanel.text.tl = lasikPanel.text:CreateFontString(nil, 'OVERLAY')
-lasikPanel.text.tl:SetFont('Fonts\\FRIZQT__.TTF', 12, 'OUTLINE')
-lasikPanel.text.tl:SetPoint('TOPLEFT', lasikPanel, 'TOPLEFT', 2.5, -3)
-lasikPanel.text.tl:SetJustifyH('LEFT')
-lasikPanel.text.tr = lasikPanel.text:CreateFontString(nil, 'OVERLAY')
-lasikPanel.text.tr:SetFont('Fonts\\FRIZQT__.TTF', 12, 'OUTLINE')
-lasikPanel.text.tr:SetPoint('TOPRIGHT', lasikPanel, 'TOPRIGHT', -2.5, -3)
-lasikPanel.text.tr:SetJustifyH('RIGHT')
-lasikPanel.text.bl = lasikPanel.text:CreateFontString(nil, 'OVERLAY')
-lasikPanel.text.bl:SetFont('Fonts\\FRIZQT__.TTF', 12, 'OUTLINE')
-lasikPanel.text.bl:SetPoint('BOTTOMLEFT', lasikPanel, 'BOTTOMLEFT', 2.5, 3)
-lasikPanel.text.bl:SetJustifyH('LEFT')
-lasikPanel.text.br = lasikPanel.text:CreateFontString(nil, 'OVERLAY')
-lasikPanel.text.br:SetFont('Fonts\\FRIZQT__.TTF', 12, 'OUTLINE')
-lasikPanel.text.br:SetPoint('BOTTOMRIGHT', lasikPanel, 'BOTTOMRIGHT', -2.5, 3)
-lasikPanel.text.br:SetJustifyH('RIGHT')
-lasikPanel.text.center = lasikPanel.text:CreateFontString(nil, 'OVERLAY')
-lasikPanel.text.center:SetFont('Fonts\\FRIZQT__.TTF', 12, 'OUTLINE')
-lasikPanel.text.center:SetAllPoints(lasikPanel.text)
-lasikPanel.text.center:SetJustifyH('CENTER')
-lasikPanel.text.center:SetJustifyV('CENTER')
-lasikPanel.button = CreateFrame('Button', nil, lasikPanel)
-lasikPanel.button:SetAllPoints(lasikPanel)
-lasikPanel.button:RegisterForClicks('LeftButtonDown', 'RightButtonDown', 'MiddleButtonDown')
-local lasikPreviousPanel = CreateFrame('Frame', 'lasikPreviousPanel', UIParent)
-lasikPreviousPanel:SetFrameStrata('BACKGROUND')
-lasikPreviousPanel:SetSize(64, 64)
-lasikPreviousPanel:SetMovable(true)
-lasikPreviousPanel:SetUserPlaced(true)
-lasikPreviousPanel:RegisterForDrag('LeftButton')
-lasikPreviousPanel:SetScript('OnDragStart', lasikPreviousPanel.StartMoving)
-lasikPreviousPanel:SetScript('OnDragStop', lasikPreviousPanel.StopMovingOrSizing)
-lasikPreviousPanel:Hide()
-lasikPreviousPanel.icon = lasikPreviousPanel:CreateTexture(nil, 'BACKGROUND')
-lasikPreviousPanel.icon:SetAllPoints(lasikPreviousPanel)
-lasikPreviousPanel.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
-lasikPreviousPanel.border = lasikPreviousPanel:CreateTexture(nil, 'ARTWORK')
-lasikPreviousPanel.border:SetAllPoints(lasikPreviousPanel)
-lasikPreviousPanel.border:SetTexture(ADDON_PATH .. 'border.blp')
-local lasikCooldownPanel = CreateFrame('Frame', 'lasikCooldownPanel', UIParent)
-lasikCooldownPanel:SetFrameStrata('BACKGROUND')
-lasikCooldownPanel:SetSize(64, 64)
-lasikCooldownPanel:SetMovable(true)
-lasikCooldownPanel:SetUserPlaced(true)
-lasikCooldownPanel:RegisterForDrag('LeftButton')
-lasikCooldownPanel:SetScript('OnDragStart', lasikCooldownPanel.StartMoving)
-lasikCooldownPanel:SetScript('OnDragStop', lasikCooldownPanel.StopMovingOrSizing)
-lasikCooldownPanel:Hide()
-lasikCooldownPanel.icon = lasikCooldownPanel:CreateTexture(nil, 'BACKGROUND')
-lasikCooldownPanel.icon:SetAllPoints(lasikCooldownPanel)
-lasikCooldownPanel.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
-lasikCooldownPanel.border = lasikCooldownPanel:CreateTexture(nil, 'ARTWORK')
-lasikCooldownPanel.border:SetAllPoints(lasikCooldownPanel)
-lasikCooldownPanel.border:SetTexture(ADDON_PATH .. 'border.blp')
-lasikCooldownPanel.dimmer = lasikCooldownPanel:CreateTexture(nil, 'BORDER')
-lasikCooldownPanel.dimmer:SetAllPoints(lasikCooldownPanel)
-lasikCooldownPanel.dimmer:SetColorTexture(0, 0, 0, 0.6)
-lasikCooldownPanel.dimmer:Hide()
-lasikCooldownPanel.swipe = CreateFrame('Cooldown', nil, lasikCooldownPanel, 'CooldownFrameTemplate')
-lasikCooldownPanel.swipe:SetAllPoints(lasikCooldownPanel)
-lasikCooldownPanel.swipe:SetDrawBling(false)
-lasikCooldownPanel.swipe:SetDrawEdge(false)
-lasikCooldownPanel.text = lasikCooldownPanel:CreateFontString(nil, 'OVERLAY')
-lasikCooldownPanel.text:SetFont('Fonts\\FRIZQT__.TTF', 12, 'OUTLINE')
-lasikCooldownPanel.text:SetAllPoints(lasikCooldownPanel)
-lasikCooldownPanel.text:SetJustifyH('CENTER')
-lasikCooldownPanel.text:SetJustifyV('CENTER')
-local lasikInterruptPanel = CreateFrame('Frame', 'lasikInterruptPanel', UIParent)
-lasikInterruptPanel:SetFrameStrata('BACKGROUND')
-lasikInterruptPanel:SetSize(64, 64)
-lasikInterruptPanel:SetMovable(true)
-lasikInterruptPanel:SetUserPlaced(true)
-lasikInterruptPanel:RegisterForDrag('LeftButton')
-lasikInterruptPanel:SetScript('OnDragStart', lasikInterruptPanel.StartMoving)
-lasikInterruptPanel:SetScript('OnDragStop', lasikInterruptPanel.StopMovingOrSizing)
-lasikInterruptPanel:Hide()
-lasikInterruptPanel.icon = lasikInterruptPanel:CreateTexture(nil, 'BACKGROUND')
-lasikInterruptPanel.icon:SetAllPoints(lasikInterruptPanel)
-lasikInterruptPanel.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
-lasikInterruptPanel.border = lasikInterruptPanel:CreateTexture(nil, 'ARTWORK')
-lasikInterruptPanel.border:SetAllPoints(lasikInterruptPanel)
-lasikInterruptPanel.border:SetTexture(ADDON_PATH .. 'border.blp')
-lasikInterruptPanel.swipe = CreateFrame('Cooldown', nil, lasikInterruptPanel, 'CooldownFrameTemplate')
-lasikInterruptPanel.swipe:SetAllPoints(lasikInterruptPanel)
-lasikInterruptPanel.swipe:SetDrawBling(false)
-lasikInterruptPanel.swipe:SetDrawEdge(false)
-local lasikExtraPanel = CreateFrame('Frame', 'lasikExtraPanel', UIParent)
-lasikExtraPanel:SetFrameStrata('BACKGROUND')
-lasikExtraPanel:SetSize(64, 64)
-lasikExtraPanel:SetMovable(true)
-lasikExtraPanel:SetUserPlaced(true)
-lasikExtraPanel:RegisterForDrag('LeftButton')
-lasikExtraPanel:SetScript('OnDragStart', lasikExtraPanel.StartMoving)
-lasikExtraPanel:SetScript('OnDragStop', lasikExtraPanel.StopMovingOrSizing)
-lasikExtraPanel:Hide()
-lasikExtraPanel.icon = lasikExtraPanel:CreateTexture(nil, 'BACKGROUND')
-lasikExtraPanel.icon:SetAllPoints(lasikExtraPanel)
-lasikExtraPanel.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
-lasikExtraPanel.border = lasikExtraPanel:CreateTexture(nil, 'ARTWORK')
-lasikExtraPanel.border:SetAllPoints(lasikExtraPanel)
-lasikExtraPanel.border:SetTexture(ADDON_PATH .. 'border.blp')
 
 -- Start AoE
 
@@ -589,6 +474,11 @@ function Ability:Remains()
 	return 0
 end
 
+function Ability:Expiring(seconds)
+	local remains = self:Remains()
+	return remains > 0 and remains < (seconds or Player.gcd)
+end
+
 function Ability:Refreshable()
 	if self.buff_duration > 0 then
 		return self:Remains() < self:Duration() * 0.3
@@ -621,7 +511,7 @@ function Ability:Traveling(all)
 	local count = 0
 	for _, cast in next, self.traveling do
 		if all or cast.dstGUID == Target.guid then
-			if Player.time - cast.start < self.max_range / self.velocity then
+			if Player.time - cast.start < self.max_range / self.velocity + (self.travel_delay or 0) then
 				count = count + 1
 			end
 		end
@@ -630,7 +520,7 @@ function Ability:Traveling(all)
 end
 
 function Ability:TravelTime()
-	return Target.estimated_range / self.velocity
+	return Target.estimated_range / self.velocity + (self.travel_delay or 0)
 end
 
 function Ability:Ticking()
@@ -644,7 +534,7 @@ function Ability:Ticking()
 	end
 	if self.traveling then
 		for _, cast in next, self.traveling do
-			if Player.time - cast.start < self.max_range / self.velocity then
+			if Player.time - cast.start < self.max_range / self.velocity + (self.travel_delay or 0) then
 				ticking[cast.dstGUID] = true
 			end
 		end
@@ -687,7 +577,7 @@ function Ability:CooldownExpected()
 	end
 	local remains = duration - (Player.ctime - start)
 	local reduction = (Player.time - self.last_used) / (self:CooldownDuration() - remains)
-	return max(0, (remains * reduction) - Player.execute_remains)
+	return max(0, (remains * reduction) - (self.off_gcd and 0 or Player.execute_remains))
 end
 
 function Ability:Stack()
@@ -745,7 +635,7 @@ function Ability:FullRechargeTime()
 	if charges >= max_charges then
 		return 0
 	end
-	return (max_charges - charges - 1) * recharge_time + (recharge_time - (Player.ctime - recharge_start) - Player.execute_remains)
+	return (max_charges - charges - 1) * recharge_time + (recharge_time - (Player.ctime - recharge_start) - (self.off_gcd and 0 or Player.execute_remains))
 end
 
 function Ability:Duration()
@@ -754,6 +644,10 @@ end
 
 function Ability:Casting()
 	return Player.cast.ability == self
+end
+
+function Ability:Channeling()
+	return UnitChannelInfo('player') == self.name
 end
 
 function Ability:CastTime()
@@ -837,6 +731,9 @@ end
 
 function Ability:CastSuccess(dstGUID)
 	self.last_used = Player.time
+	if self.ignore_cast then
+		return
+	end
 	Player.last_ability = self
 	if self.triggers_gcd then
 		Player.previous_gcd[10] = nil
@@ -868,22 +765,29 @@ function Ability:CastLanded(dstGUID, event, missType)
 	if self.traveling then
 		local oldest
 		for guid, cast in next, self.traveling do
-			if Player.time - cast.start >= self.max_range / self.velocity + 0.2 then
+			if Player.time - cast.start >= self.max_range / self.velocity + (self.travel_delay or 0) + 0.2 then
 				self.traveling[guid] = nil -- spell traveled 0.2s past max range, delete it, this should never happen
 			elseif cast.dstGUID == dstGUID and (not oldest or cast.start < oldest.start) then
 				oldest = cast
 			end
 		end
 		if oldest then
-			Target.estimated_range = floor(clamp(self.velocity * max(0, Player.time - oldest.start), 0, self.max_range))
+			Target.estimated_range = floor(clamp(self.velocity * max(0, Player.time - oldest.start - (self.travel_delay or 0)), 0, self.max_range))
 			self.traveling[oldest.guid] = nil
 		end
 	end
 	if self.range_est_start then
-		Target.estimated_range = floor(clamp(self.velocity * (Player.time - self.range_est_start), 5, self.max_range))
+		Target.estimated_range = floor(clamp(self.velocity * (Player.time - self.range_est_start - (self.travel_delay or 0)), 5, self.max_range))
 		self.range_est_start = nil
 	elseif self.max_range < Target.estimated_range then
 		Target.estimated_range = self.max_range
+	end
+	if Opt.auto_aoe and self.auto_aoe then
+		if event == 'SPELL_MISSED' and (missType == 'EVADE' or (missType == 'IMMUNE' and not self.ignore_immune)) then
+			AutoAoe:Remove(dstGUID)
+		elseif event == self.auto_aoe.trigger or (self.auto_aoe.trigger == 'SPELL_AURA_APPLIED' and event == 'SPELL_AURA_REFRESH') then
+			self:RecordTargetHit(dstGUID)
+		end
 	end
 	if Opt.previous and Opt.miss_effect and event == 'SPELL_MISSED' and lasikPreviousPanel.ability == self then
 		lasikPreviousPanel.border:SetTexture(ADDON_PATH .. 'misseffect.blp')
@@ -1454,20 +1358,11 @@ function Player:UpdateKnown()
 	end
 	Recrimination.known = self.set_bonus.t30 >= 4
 
---[[
-actions.precombat+=/variable,name=spirit_bomb_soul_fragments_not_in_meta,op=setif,value=4,value_else=5,condition=talent.fracture
-actions.precombat+=/variable,name=spirit_bomb_soul_fragments_in_meta,op=setif,value=3,value_else=4,condition=talent.fracture
-actions.precombat+=/variable,name=vulnerability_frailty_stack,op=setif,value=1,value_else=0,condition=talent.vulnerability
-actions.precombat+=/variable,name=cooldown_frailty_requirement_st,op=setif,value=6*variable.vulnerability_frailty_stack,value_else=variable.vulnerability_frailty_stack,condition=talent.soulcrush
-actions.precombat+=/variable,name=cooldown_frailty_requirement_aoe,op=setif,value=5*variable.vulnerability_frailty_stack,value_else=variable.vulnerability_frailty_stack,condition=talent.soulcrush
-]]
-	self.spirit_bomb_soul_fragments_not_in_meta = Fracture.known and 4 or 5
-	self.spirit_bomb_soul_fragments_in_meta = Fracture.known and 3 or 4
-	self.cooldown_frailty_requirement_st = (Vulnerability.known and 1 or 0) * (SoulCrush.known and 6 or 1)
-	self.cooldown_frailty_requirement_aoe = (Vulnerability.known and 1 or 0) * (SoulCrush.known and 5 or 1)
-	self.filler_fury = (Fracture.known and Fracture:Gain()) or (Shear.known and Shear:Gain()) or 0
-
 	Abilities:Update()
+
+	if APL[self.spec].precombat_variables then
+		APL[self.spec]:precombat_variables()
+	end
 end
 
 function Player:UpdateThreat()
@@ -1500,12 +1395,14 @@ function Player:Update()
 		self.cast.ability = Abilities.bySpellId[spellId]
 		self.cast.start = start / 1000
 		self.cast.ends = ends / 1000
+		self.cast.remains = self.cast.ends - self.ctime
 	else
 		self.cast.ability = nil
 		self.cast.start = 0
 		self.cast.ends = 0
+		self.cast.remains = 0
 	end
-	self.execute_remains = max(self.cast.ends - self.ctime, self.gcd_remains)
+	self.execute_remains = max(self.cast.remains, self.gcd_remains)
 	self.fury.max = UnitPowerMax('player', 17)
 	self.fury.current = UnitPower('player', 17)
 	if self.cast.ability then
@@ -1623,15 +1520,14 @@ function Target:Update()
 	self.stunnable = true
 	self.classification = UnitClassification('target')
 	self.player = UnitIsPlayer('target')
-	self.level = UnitLevel('target')
 	self.hostile = UnitCanAttack('player', 'target') and not UnitIsDead('target')
+	self.level = UnitLevel('target')
+	if self.level == -1 then
+		self.level = Player.level + 3
+	end
 	if not self.player and self.classification ~= 'minus' and self.classification ~= 'normal' then
-		if self.level == -1 or (Player.instance == 'party' and self.level >= Player.level + 2) then
-			self.boss = true
-			self.stunnable = false
-		elseif Player.instance == 'raid' or (self.health.max > Player.health.max * 10) then
-			self.stunnable = false
-		end
+		self.boss = self.level >= (Player.level + 3)
+		self.stunnable = self.level < (Player.level + 2)
 	end
 	if self.hostile or Opt.always_on then
 		UI:UpdateCombat()
@@ -1639,6 +1535,16 @@ function Target:Update()
 		return true
 	end
 	UI:Disappear()
+end
+
+function Target:TimeToPct(pct)
+	if self.health.pct <= pct then
+		return 0
+	end
+	if self.health.loss_per_sec <= 0 then
+		return self.timeToDieMax
+	end
+	return min(self.timeToDieMax, (self.health.current - (self.health.max * (pct / 100))) / self.health.loss_per_sec)
 end
 
 function Target:Stunned()
@@ -2228,6 +2134,21 @@ actions.meta_end+=/annihilation,if=buff.fel_barrage.down
 	end
 end
 
+APL[SPEC.VENGEANCE].precombat_variables = function(self)
+--[[
+actions.precombat+=/variable,name=spirit_bomb_soul_fragments_not_in_meta,op=setif,value=4,value_else=5,condition=talent.fracture
+actions.precombat+=/variable,name=spirit_bomb_soul_fragments_in_meta,op=setif,value=3,value_else=4,condition=talent.fracture
+actions.precombat+=/variable,name=vulnerability_frailty_stack,op=setif,value=1,value_else=0,condition=talent.vulnerability
+actions.precombat+=/variable,name=cooldown_frailty_requirement_st,op=setif,value=6*variable.vulnerability_frailty_stack,value_else=variable.vulnerability_frailty_stack,condition=talent.soulcrush
+actions.precombat+=/variable,name=cooldown_frailty_requirement_aoe,op=setif,value=5*variable.vulnerability_frailty_stack,value_else=variable.vulnerability_frailty_stack,condition=talent.soulcrush
+]]
+	self.spirit_bomb_soul_fragments_not_in_meta = Fracture.known and 4 or 5
+	self.spirit_bomb_soul_fragments_in_meta = Fracture.known and 3 or 4
+	self.cooldown_frailty_requirement_st = (Vulnerability.known and 1 or 0) * (SoulCrush.known and 6 or 1)
+	self.cooldown_frailty_requirement_aoe = (Vulnerability.known and 1 or 0) * (SoulCrush.known and 5 or 1)
+	self.filler_fury = (Fracture.known and Fracture:Gain()) or (Shear.known and Shear:Gain()) or 0
+end
+
 APL[SPEC.VENGEANCE].Main = function(self)
 	if Player:TimeInCombat() == 0 then
 --[[
@@ -2689,7 +2610,7 @@ function UI:CreateOverlayGlows()
 			end
 		end
 	end
-	UI:UpdateGlowColorAndScale()
+	self:UpdateGlowColorAndScale()
 end
 
 function UI:UpdateGlows()
@@ -2725,6 +2646,18 @@ end
 
 function UI:UpdateDraggable()
 	local draggable = not (Opt.locked or Opt.snap or Opt.aoe)
+	lasikPanel:SetMovable(not Opt.snap)
+	lasikPreviousPanel:SetMovable(not Opt.snap)
+	lasikCooldownPanel:SetMovable(not Opt.snap)
+	lasikInterruptPanel:SetMovable(not Opt.snap)
+	lasikExtraPanel:SetMovable(not Opt.snap)
+	if not Opt.snap then
+		lasikPanel:SetUserPlaced(true)
+		lasikPreviousPanel:SetUserPlaced(true)
+		lasikCooldownPanel:SetUserPlaced(true)
+		lasikInterruptPanel:SetUserPlaced(true)
+		lasikExtraPanel:SetUserPlaced(true)
+	end
 	lasikPanel:EnableMouse(draggable or Opt.aoe)
 	lasikPanel.button:SetShown(Opt.aoe)
 	lasikPreviousPanel:EnableMouse(draggable)
@@ -2831,7 +2764,13 @@ function UI:Disappear()
 	Player.cd = nil
 	Player.interrupt = nil
 	Player.extra = nil
-	UI:UpdateGlows()
+	self:UpdateGlows()
+end
+
+function UI:Reset()
+	lasikPanel:ClearAllPoints()
+	lasikPanel:SetPoint('CENTER', 0, -169)
+	self:SnapAllPanels()
 end
 
 function UI:UpdateDisplay()
@@ -2956,12 +2895,12 @@ function Events:ADDON_LOADED(name)
 		UI:UpdateAlpha()
 		UI:UpdateScale()
 		if firstRun then
-			print('It looks like this is your first time running ' .. ADDON .. ', why don\'t you take some time to familiarize yourself with the commands?')
-			print('Type |cFFFFD000' .. SLASH_Lasik1 .. '|r for a list of commands.')
+			log('It looks like this is your first time running ' .. ADDON .. ', why don\'t you take some time to familiarize yourself with the commands?')
+			log('Type |cFFFFD000' .. SLASH_Lasik1 .. '|r for a list of commands.')
 			UI:SnapAllPanels()
 		end
 		if UnitLevel('player') < 10 then
-			print('[|cFFFFD000Warning|r] ' .. ADDON .. ' is not designed for players under level 10, and almost certainly will not operate properly!')
+			log('[|cFFFFD000Warning|r]', ADDON, 'is not designed for players under level 10, and almost certainly will not operate properly!')
 		end
 	end
 end
@@ -2981,6 +2920,7 @@ CombatEvent.TRIGGER = function(timeStamp, event, _, srcGUID, _, _, _, dstGUID, _
 	   e == 'SPELL_CAST_SUCCESS' or
 	   e == 'SPELL_CAST_FAILED' or
 	   e == 'SPELL_DAMAGE' or
+	   e == 'SPELL_ABSORBED' or
 	   e == 'SPELL_ENERGIZE' or
 	   e == 'SPELL_PERIODIC_DAMAGE' or
 	   e == 'SPELL_MISSED' or
@@ -3037,7 +2977,7 @@ CombatEvent.SPELL = function(event, srcGUID, dstGUID, spellId, spellName, spellS
 
 	local ability = spellId and Abilities.bySpellId[spellId]
 	if not ability then
-		--print(format('EVENT %s TRACK CHECK FOR UNKNOWN %s ID %d', event, type(spellName) == 'string' and spellName or 'Unknown', spellId or 0))
+		--log(format('EVENT %s TRACK CHECK FOR UNKNOWN %s ID %d', event, type(spellName) == 'string' and spellName or 'Unknown', spellId or 0))
 		return
 	end
 
@@ -3065,13 +3005,6 @@ CombatEvent.SPELL = function(event, srcGUID, dstGUID, spellId, spellName, spellS
 			ability.last_gained = Player.time
 		end
 		return -- ignore buffs beyond here
-	end
-	if Opt.auto_aoe then
-		if event == 'SPELL_MISSED' and (missType == 'EVADE' or (missType == 'IMMUNE' and not ability.ignore_immune)) then
-			AutoAoe:Remove(dstGUID)
-		elseif ability.auto_aoe and (event == ability.auto_aoe.trigger or ability.auto_aoe.trigger == 'SPELL_AURA_APPLIED' and event == 'SPELL_AURA_REFRESH') then
-			ability:RecordTargetHit(dstGUID)
-		end
 	end
 	if event == 'SPELL_DAMAGE' or event == 'SPELL_ABSORBED' or event == 'SPELL_MISSED' or event == 'SPELL_AURA_APPLIED' or event == 'SPELL_AURA_REFRESH' then
 		ability:CastLanded(dstGUID, event, missType)
@@ -3120,18 +3053,6 @@ end
 Events.UNIT_SPELLCAST_FAILED = Events.UNIT_SPELLCAST_STOP
 Events.UNIT_SPELLCAST_INTERRUPTED = Events.UNIT_SPELLCAST_STOP
 
---[[
-function Events:UNIT_SPELLCAST_SENT(unitId, destName, castGUID, spellId)
-	if unitId ~= 'player' or not spellId or castGUID:sub(6, 6) ~= '3' then
-		return
-	end
-	local ability = Abilities.bySpellId[spellId]
-	if not ability then
-		return
-	end
-end
-]]
-
 function Events:UNIT_SPELLCAST_SUCCEEDED(unitId, castGUID, spellId)
 	if unitId ~= 'player' or not spellId or castGUID:sub(6, 6) ~= '3' then
 		return
@@ -3167,6 +3088,9 @@ function Events:PLAYER_REGEN_ENABLED()
 	end
 	if Opt.auto_aoe then
 		AutoAoe:Clear()
+	end
+	if APL[Player.spec].precombat_variables then
+		APL[Player.spec]:precombat_variables()
 	end
 end
 
@@ -3317,7 +3241,7 @@ local function Status(desc, opt, ...)
 	else
 		opt_view = opt and '|cFF00C000On|r' or '|cFFC00000Off|r'
 	end
-	print(ADDON, '-', desc .. ':', opt_view, ...)
+	log(desc .. ':', opt_view, ...)
 end
 
 SlashCmdList[ADDON] = function(msg, editbox)
@@ -3343,7 +3267,7 @@ SlashCmdList[ADDON] = function(msg, editbox)
 			else
 				Opt.snap = false
 				Opt.locked = false
-				lasikPanel:ClearAllPoints()
+				UI:Reset()
 			end
 			UI:UpdateDraggable()
 			UI.OnResourceFrameShow()
@@ -3566,9 +3490,7 @@ SlashCmdList[ADDON] = function(msg, editbox)
 		return Status('Show on-use trinkets in cooldown UI', Opt.trinket)
 	end
 	if msg[1] == 'reset' then
-		lasikPanel:ClearAllPoints()
-		lasikPanel:SetPoint('CENTER', 0, -169)
-		UI:SnapAllPanels()
+		UI:Reset()
 		return Status('Position has been reset to', 'default')
 	end
 	print(ADDON, '(version: |cFFFFD000' .. GetAddOnMetadata(ADDON, 'Version') .. '|r) - Commands:')

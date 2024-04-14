@@ -1,23 +1,23 @@
 <Bindings>
-	<Binding name="Toggle Targets +" header="LASIK" category="ADDONS">
+	<Binding name="LASIK_TARGETMORE" category="BINDING_CATEGORY_LASIK">
 		Lasik_ToggleTargetMode()
 	</Binding>
-	<Binding name="Toggle Targets -">
+	<Binding name="LASIK_TARGETLESS" category="BINDING_CATEGORY_LASIK">
 		Lasik_ToggleTargetModeReverse()
 	</Binding>
-	<Binding name="Set Targets to 1">
+	<Binding name="LASIK_TARGET1" category="BINDING_CATEGORY_LASIK">
 		Lasik_SetTargetMode(1)
 	</Binding>
-	<Binding name="Set Targets to 2">
+	<Binding name="LASIK_TARGET2" category="BINDING_CATEGORY_LASIK">
 		Lasik_SetTargetMode(2)
 	</Binding>
-	<Binding name="Set Targets to 3">
+	<Binding name="LASIK_TARGET3" category="BINDING_CATEGORY_LASIK">
 		Lasik_SetTargetMode(3)
 	</Binding>
-	<Binding name="Set Targets to 4">
+	<Binding name="LASIK_TARGET4" category="BINDING_CATEGORY_LASIK">
 		Lasik_SetTargetMode(4)
 	</Binding>
-	<Binding name="Set Targets to 5+">
+	<Binding name="LASIK_TARGET5" category="BINDING_CATEGORY_LASIK">
 		Lasik_SetTargetMode(5)
 	</Binding>
 </Bindings>
