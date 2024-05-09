@@ -1,8 +1,8 @@
-## Interface: 100206
+## Interface: 100207
 ## Title: Lasik
 ## Notes: Lasik is an addon for demon hunters that simplifies gameplay and maximizes DPS by doing all the decision making for you
 ## Author: jcadduono @ curseforge.com or Spy#1955 @ BattleTag
 ## SavedVariablesPerCharacter: Lasik
-## Version: 10.2.6-1
+## Version: 10.2.7-0
 Lasik.xml
 Lasik.lua

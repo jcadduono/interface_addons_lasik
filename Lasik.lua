@@ -228,6 +228,7 @@ local Player = {
 		t29 = 0, -- Skybound Avenger's Flightwear
 		t30 = 0, -- Kinslayer's Burdens
 		t31 = 0, -- Screaming Torchfiend's Brutality
+		t32 = 0, -- Screaming Torchfiend's Brutality (Awakened)
 	},
 	previous_gcd = {},-- list of previous GCD abilities
 	item_use_blacklist = { -- list of item IDs with on-use effects we should mark unusable
@@ -254,6 +255,16 @@ local Target = {
 	},
 	hostile = false,
 	estimated_range = 30,
+}
+
+-- target dummy unit IDs (count these units as bosses)
+Target.Dummies = {
+	[194643] = true,
+	[194648] = true,
+	[198594] = true,
+	[194644] = true,
+	[194649] = true,
+	[197833] = true,
 }
 
 -- Start AoE
@@ -828,7 +839,7 @@ function Ability:ApplyAura(guid)
 	return aura
 end
 
-function Ability:RefreshAura(guid)
+function Ability:RefreshAura(guid, extend)
 	if AutoAoe.blacklist[guid] then
 		return
 	end
@@ -837,14 +848,14 @@ function Ability:RefreshAura(guid)
 		return self:ApplyAura(guid)
 	end
 	local duration = self:Duration()
-	aura.expires = max(aura.expires, Player.time + min(duration * (self.no_pandemic and 1.0 or 1.3), (aura.expires - Player.time) + duration))
+	aura.expires = max(aura.expires, Player.time + min(duration * (self.no_pandemic and 1.0 or 1.3), (aura.expires - Player.time) + (extend or duration)))
 	return aura
 end
 
-function Ability:RefreshAuraAll()
+function Ability:RefreshAuraAll(extend)
 	local duration = self:Duration()
 	for guid, aura in next, self.aura_targets do
-		aura.expires = max(aura.expires, Player.time + min(duration * (self.no_pandemic and 1.0 or 1.3), (aura.expires - Player.time) + duration))
+		aura.expires = max(aura.expires, Player.time + min(duration * (self.no_pandemic and 1.0 or 1.3), (aura.expires - Player.time) + (extend or duration)))
 	end
 end
 
@@ -1407,7 +1418,6 @@ function Player:Update()
 		self.cast.remains = 0
 	end
 	self.execute_remains = max(self.cast.remains, self.gcd_remains)
-	self.fury.max = UnitPowerMax('player', 17)
 	self.fury.current = UnitPower('player', 17)
 	if self.cast.ability then
 		self.fury.current = self.fury.current - self.cast.ability:Cost() + self.cast.ability:Gain()
@@ -1450,7 +1460,6 @@ function Player:Init()
 	lasikPreviousPanel.ability = nil
 	self.guid = UnitGUID('player')
 	self.name = UnitName('player')
-	self.level = UnitLevel('player')
 	_, self.instance = IsInInstance()
 	Events:GROUP_ROSTER_UPDATE()
 	Events:PLAYER_SPECIALIZATION_CHANGED('player')
@@ -1499,6 +1508,7 @@ function Target:Update()
 	local guid = UnitGUID('target')
 	if not guid then
 		self.guid = nil
+		self.uid = nil
 		self.boss = false
 		self.stunnable = true
 		self.classification = 'normal'
@@ -1518,6 +1528,7 @@ function Target:Update()
 	end
 	if guid ~= self.guid then
 		self.guid = guid
+		self.uid = tonumber(guid:match('^%w+-%d+-%d+-%d+-%d+-(%d+)') or 0)
 		self:UpdateHealth(true)
 	end
 	self.boss = false
@@ -1532,6 +1543,9 @@ function Target:Update()
 	if not self.player and self.classification ~= 'minus' and self.classification ~= 'normal' then
 		self.boss = self.level >= (Player.level + 3)
 		self.stunnable = self.level < (Player.level + 2)
+	end
+	if self.Dummies[self.uid] then
+		self.boss = true
 	end
 	if self.hostile or Opt.always_on then
 		UI:UpdateCombat()
@@ -2020,13 +2034,13 @@ actions+=/pick_up_fragment,mode=nearest,type=lesser,if=fury.deficit>=45&(!cooldo
 	) then
 		UseCooldown(EyeBeam)
 	end
-	if BladeDance:Usable() and ((self.blade_dance and not self.in_fel_barrage) or Player.set_bonus.t31 >= 2) then
+	if BladeDance:Usable() and ((self.blade_dance and not self.in_fel_barrage) or (Player.set_bonus.t31 >= 2 or Player.set_bonus.t32 >= 2)) then
 		return BladeDance
 	end
 	if SigilOfFlame:Usable() and AnyMeansNecessary.known and not self.in_essence_break and Player.enemies >= 4 then
 		return SigilOfFlame
 	end
-	if ThrowGlaive:Usable() and Soulscar.known and Player.enemies >= (2 - (FuriousThrows.known and 1 or 0)) and not self.in_essence_break and (ThrowGlaive:FullRechargeTime() < (Player.gcd * 3) or Player.enemies > 1) and Player.set_bonus.t31 < 2 then
+	if ThrowGlaive:Usable() and Soulscar.known and Player.enemies >= (2 - (FuriousThrows.known and 1 or 0)) and not self.in_essence_break and (ThrowGlaive:FullRechargeTime() < (Player.gcd * 3) or Player.enemies > 1) and (Player.set_bonus.t31 < 2 and Player.set_bonus.t32 < 2) then
 		return ThrowGlaive
 	end
 	if ImmolationAura:Usable() and Player.enemies >= 2 and Player.fury.current < 70 and not self.in_essence_break then
@@ -2046,13 +2060,13 @@ actions+=/pick_up_fragment,mode=nearest,type=lesser,if=fury.deficit>=45&(!cooldo
 			return SigilOfFlame
 		end
 	end
-	if ThrowGlaive:Usable() and Soulscar.known and Player.enemies >= (2 - (FuriousThrows.known and 1 or 0)) and not self.in_essence_break and Player.set_bonus.t31 < 2 then
+	if ThrowGlaive:Usable() and Soulscar.known and Player.enemies >= (2 - (FuriousThrows.known and 1 or 0)) and not self.in_essence_break and (Player.set_bonus.t31 < 2 and Player.set_bonus.t32 < 2) then
 		return ThrowGlaive
 	end
 	if ImmolationAura:Usable() and ImmolationAura:Stack() < ImmolationAura:MaxStack() and (not UnboundChaos.known or UnboundChaos:Down()) and not Player:OutOfRange() and (ImmolationAura:FullRechargeTime() < EssenceBreak:Cooldown() or (not EssenceBreak.known and not EyeBeam:Ready(ImmolationAura:FullRechargeTime()))) then
 		return ImmolationAura
 	end
-	if ThrowGlaive:Usable() and Soulscar.known and ThrowGlaive:FullRechargeTime() < BladeDance:Cooldown() and Player.set_bonus.t31 >= 2 and not self.in_fel_barrage and not self.pooling_for_eye_beam then
+	if ThrowGlaive:Usable() and Soulscar.known and ThrowGlaive:FullRechargeTime() < BladeDance:Cooldown() and (Player.set_bonus.t31 >= 2 or Player.set_bonus.t32 >= 2) and not self.in_fel_barrage and not self.pooling_for_eye_beam then
 		return ThrowGlaive
 	end
 	if ChaosStrike:Usable() and not self.pooling_for_blade_dance and not self.pooling_for_eye_beam and not self.in_fel_barrage then
@@ -2082,7 +2096,7 @@ actions+=/pick_up_fragment,mode=nearest,type=lesser,if=fury.deficit>=45&(!cooldo
 	if FelRush:Usable() and Momentum.known and Momentum:Remains() <= 20 then
 		UseCooldown(FelRush)
 	end
-	if ThrowGlaive:Usable() and (DemonBlades.known or Player:OutOfRange()) and not self.in_essence_break and Player.set_bonus.t31 < 2 then
+	if ThrowGlaive:Usable() and (DemonBlades.known or Player:OutOfRange()) and not self.in_essence_break and (Player.set_bonus.t31 < 2 and Player.set_bonus.t32 < 2) then
 		return ThrowGlaive
 	end
 end
@@ -3037,9 +3051,16 @@ end
 
 function Events:UNIT_HEALTH(unitId)
 	if unitId == 'player' then
-		Player.health.current = UnitHealth('player')
-		Player.health.max = UnitHealthMax('player')
+		Player.health.current = UnitHealth(unitId)
+		Player.health.max = UnitHealthMax(unitId)
 		Player.health.pct = Player.health.current / Player.health.max * 100
+	end
+end
+
+function Events:UNIT_MAXPOWER(unitId)
+	if unitId == 'player' then
+		Player.level = UnitLevel(unitId)
+		Player.fury.max = UnitPowerMax(unitId, 17)
 	end
 end
 
@@ -3129,6 +3150,7 @@ function Events:PLAYER_EQUIPMENT_CHANGED()
 	Player.set_bonus.t29 = (Player:Equipped(200342) and 1 or 0) + (Player:Equipped(200344) and 1 or 0) + (Player:Equipped(200345) and 1 or 0) + (Player:Equipped(200346) and 1 or 0) + (Player:Equipped(200347) and 1 or 0)
 	Player.set_bonus.t30 = (Player:Equipped(202522) and 1 or 0) + (Player:Equipped(202523) and 1 or 0) + (Player:Equipped(202524) and 1 or 0) + (Player:Equipped(202525) and 1 or 0) + (Player:Equipped(202527) and 1 or 0)
 	Player.set_bonus.t31 = (Player:Equipped(207261) and 1 or 0) + (Player:Equipped(207262) and 1 or 0) + (Player:Equipped(207263) and 1 or 0) + (Player:Equipped(207264) and 1 or 0) + (Player:Equipped(207266) and 1 or 0)
+	Player.set_bonus.t32 = (Player:Equipped(217226) and 1 or 0) + (Player:Equipped(217227) and 1 or 0) + (Player:Equipped(217228) and 1 or 0) + (Player:Equipped(217229) and 1 or 0) + (Player:Equipped(217230) and 1 or 0)
 
 	Player:ResetSwing(true, true)
 	Player:UpdateKnown()
@@ -3144,6 +3166,7 @@ function Events:PLAYER_SPECIALIZATION_CHANGED(unitId)
 	Events:PLAYER_EQUIPMENT_CHANGED()
 	Events:PLAYER_REGEN_ENABLED()
 	Events:UNIT_HEALTH('player')
+	Events:UNIT_MAXPOWER('player')
 	UI.OnResourceFrameShow()
 	Target:Update()
 	Player:Update()
