@@ -263,8 +263,6 @@ local Player = {
 		[203729] = true, -- Ominous Chromatic Essence
 	},
 	main_freecast = false,
-	meta_remains = 0,
-	meta_active = false,
 }
 
 -- current target information
@@ -492,7 +490,7 @@ function Ability:Usable(seconds, pool)
 	if not self.known then
 		return false
 	end
-	if self:Cost() > Player.fury.current then
+	if not self.pool and self:Cost() > Player.fury.current then
 		return false
 	end
 	if self.requires_charge and self:Charges() == 0 then
@@ -974,7 +972,7 @@ Disrupt.triggers_gcd = false
 Disrupt.off_gcd = true
 local ImmolationAura = Ability:Add(258920, true, true)
 ImmolationAura.buff_duration = 6
-ImmolationAura.cooldown_duration = 15
+ImmolationAura.cooldown_duration = 30
 ImmolationAura.tick_interval = 1
 ImmolationAura.hasted_cooldown = true
 ImmolationAura.damage = Ability:Add(258922, false, true)
@@ -995,12 +993,15 @@ ImmolationAura.buff_spellIds = {
 	[427916] = true,
 	[427917] = true,
 }
-local Metamorphosis = Ability:Add(191427, true, true, 162264)
-Metamorphosis.buff_duration = 30
-Metamorphosis.cooldown_duration = 240
-Metamorphosis.stun = Ability:Add(200166, false, true)
-Metamorphosis.stun.buff_duration = 3
-Metamorphosis.stun:AutoAoe(false, 'apply')
+local MetamorphosisH = Ability:Add(191427, true, true, 162264)
+MetamorphosisH.buff_duration = 30
+MetamorphosisH.cooldown_duration = 240
+MetamorphosisH.remains = 0
+MetamorphosisH.active = false
+MetamorphosisH.full = false
+MetamorphosisH.stun = Ability:Add(200166, false, true)
+MetamorphosisH.stun.buff_duration = 3
+MetamorphosisH.stun:AutoAoe(false, 'apply')
 local Torment = Ability:Add(185245, false, true)
 Torment.cooldown_duration = 8
 Torment.triggers_gcd = false
@@ -1039,7 +1040,7 @@ local SigilOfFlame = Ability:Add(204596, false, true)
 SigilOfFlame.cooldown_duration = 30
 SigilOfFlame.buff_duration = 2
 SigilOfFlame.dot = Ability:Add(204598, false, true)
-SigilOfFlame.dot.buff_duration = 6
+SigilOfFlame.dot.buff_duration = 8
 SigilOfFlame.dot.tick_interval = 1
 SigilOfFlame.dot:AutoAoe(false, 'apply')
 local SigilOfMisery = Ability:Add(207684, false, true)
@@ -1169,7 +1170,7 @@ local Fallout = Ability:Add(227174, false, true)
 local FelDevastation = Ability:Add(212084, false, true)
 FelDevastation.fury_cost = 50
 FelDevastation.buff_duration = 2
-FelDevastation.cooldown_duration = 60
+FelDevastation.cooldown_duration = 40
 FelDevastation:AutoAoe()
 local FieryBrand = Ability:Add(204021, false, true, 207771)
 FieryBrand.buff_duration = 10
@@ -1195,6 +1196,9 @@ InfernalStrike:AutoAoe()
 local MetamorphosisV = Ability:Add(187827, true, true)
 MetamorphosisV.buff_duration = 15
 MetamorphosisV.cooldown_duration = 180
+MetamorphosisV.remains = 0
+MetamorphosisV.active = false
+MetamorphosisV.full = false
 local Shear = Ability:Add(203783, false, true)
 Shear.fury_gain = 10
 local ShearFury = Ability:Add(389997, false, true)
@@ -1223,7 +1227,31 @@ SoulFragments.buff = Ability:Add(203981, true, true)
 ---- Aldrachi Reaver
 
 ---- Fel-Scarred
-
+local ConsumingFire = Ability:Add(452487, true, true)
+ConsumingFire.cooldown_duration = 30
+ConsumingFire.hasted_cooldown = true
+local DemonicIntensity = Ability:Add(452415, false, true)
+local Demonsurge = Ability:Add(452402, false, true, 452416)
+Demonsurge:AutoAoe()
+local FelDesolation = Ability:Add(452486, false, true)
+FelDesolation.fury_cost = 50
+FelDesolation.buff_duration = 2
+FelDesolation.cooldown_duration = 40
+FelDesolation:AutoAoe()
+local SigilOfDoom = Ability:Add(452490, false, true)
+SigilOfDoom.cooldown_duration = 30
+SigilOfDoom.buff_duration = 2
+SigilOfDoom.dot = Ability:Add(462030, false, true)
+SigilOfDoom.dot.buff_duration = 8
+SigilOfDoom.dot.tick_interval = 1
+SigilOfDoom.dot:AutoAoe(false, 'apply')
+local SoulSunder = Ability:Add(452436, false, true)
+SoulSunder.fury_cost = 30
+SoulSunder:AutoAoe(true)
+local SpiritBurst = Ability:Add(452437, false, true)
+SpiritBurst.fury_cost = 40
+SpiritBurst:AutoAoe(true)
+local ViolentTransformation = Ability:Add(452409, false, true)
 -- Tier set bonuses
 
 -- Racials
@@ -1235,7 +1263,7 @@ SoulFragments.buff = Ability:Add(203981, true, true)
 -- Class cooldowns
 
 -- Aliases
-
+local Metamorphosis
 -- End Abilities
 
 -- Start Inventory Items
@@ -1462,6 +1490,11 @@ function Player:UpdateKnown()
 		end
 	end
 
+	Metamorphosis = MetamorphosisH
+	if MetamorphosisV.known then
+		MetamorphosisH.known = false
+		Metamorphosis = MetamorphosisV
+	end
 	if DemonBlades.known then
 		DemonsBite.known = false
 	end
@@ -1473,6 +1506,16 @@ function Player:UpdateKnown()
 	ThrowGlaive.damage.known = ThrowGlaive.known
 	if Fracture.known then
 		Shear.known = false
+	end
+	if Demonsurge.known then
+		SoulSunder.known = SoulCleave.known
+		SpiritBurst.known = SpiritBomb.known
+	end
+	if DemonicIntensity.known then
+		ConsumingFire.known = ImmolationAura.known
+		FelDesolation.known = FelDevastation.known
+		SigilOfDoom.known = SigilOfFlame.known
+		SigilOfDoom.dot.known = SigilOfDoom.known
 	end
 
 	Abilities:Update()
@@ -1585,13 +1628,11 @@ function Player:Update()
 	self.moving = speed ~= 0
 	self.movement_speed = max_speed / 7 * 100
 	self:UpdateThreat()
-	if self.spec == SPEC.HAVOC then
-		self.meta_remains = Metamorphosis:Remains()
-	elseif self.spec == SPEC.VENGEANCE then
-		self.meta_remains = MetamorphosisV:Remains()
+	Metamorphosis.remains = Metamorphosis:Remains()
+	Metamorphosis.active = Metamorphosis.remains > 0
+	if self.spec == SPEC.VENGEANCE then
 		SoulFragments:Update()
 	end
-	self.meta_active = self.meta_remains > 0
 
 	TrackedAuras:Purge()
 	if Opt.auto_aoe then
@@ -1742,7 +1783,7 @@ end
 -- Start Ability Modifications
 
 function Annihilation:Usable()
-	if not Player.meta_active then
+	if not Metamorphosis.active then
 		return false
 	end
 	return Ability.Usable(self)
@@ -1750,7 +1791,7 @@ end
 DeathSweep.Usable = Annihilation.Usable
 
 function ChaosStrike:Usable()
-	if Player.meta_active then
+	if Metamorphosis.active then
 		return false
 	end
 	return Ability.Usable(self)
@@ -1791,6 +1832,7 @@ SigilOfChains.Duration = SigilOfFlame.Duration
 SigilOfMisery.Duration = SigilOfFlame.Duration
 SigilOfSilence.Duration = SigilOfFlame.Duration
 SigilOfSpite.Duration = SigilOfFlame.Duration
+SigilOfDoom.Duration = SigilOfFlame.Duration
 
 function SigilOfFlame:Placed()
 	return (Player.time - self.last_used) < (self:Duration() + 0.5)
@@ -1799,6 +1841,7 @@ SigilOfChains.Placed = SigilOfFlame.Placed
 SigilOfMisery.Placed = SigilOfFlame.Placed
 SigilOfSilence.Placed = SigilOfFlame.Placed
 SigilOfSpite.Placed = SigilOfFlame.Placed
+SigilOfDoom.Placed = SigilOfFlame.Placed
 
 function ImmolationAura:Stack()
 	local stack, aura = 0
@@ -1947,6 +1990,7 @@ function ImmolationAura:CastSuccess(...)
 		end
 	end
 end
+ConsumingFire.CastSuccess = ImmolationAura.CastSuccess
 
 function BulkExtraction:CastSuccess(...)
 	Ability.CastSuccess(self, ...)
@@ -1969,6 +2013,107 @@ end
 SigilOfChains.CastSuccess = SigilOfFlame.CastSuccess
 SigilOfMisery.CastSuccess = SigilOfFlame.CastSuccess
 SigilOfSilence.CastSuccess = SigilOfFlame.CastSuccess
+SigilOfDoom.CastSuccess = SigilOfFlame.CastSuccess
+
+Demonsurge.up = {
+	[SoulSunder] = false,
+	[SpiritBurst] = false,
+}
+
+function Demonsurge:Reset()
+	for ability in next, self.up do
+		self.up[ability] = true
+	end
+end
+
+function MetamorphosisH:Full()
+	return self.active and self.full
+end
+MetamorphosisV.Full = MetamorphosisH.Full
+
+function MetamorphosisH:CastSuccess(...)
+	self.full = true
+	if Demonsurge.known then
+		Demonsurge:Reset()
+	end
+	Ability.CastSuccess(self, ...)
+end
+MetamorphosisV.CastSuccess = MetamorphosisH.CastSuccess
+
+function SoulCleave:Usable(...)
+	if Demonsurge.known and Metamorphosis.active then
+		return false
+	end
+	return Ability.Usable(self, ...)
+end
+
+function SoulSunder:Usable(...)
+	return Metamorphosis.active and Ability.Usable(self, ...)
+end
+
+function SoulSunder:CastSuccess(...)
+	Demonsurge.up[self] = false
+	Ability.CastSuccess(self, ...)
+end
+SpiritBurst.CastSuccess = SoulSunder.CastSuccess
+
+function SpiritBomb:Usable(...)
+	if SoulFragments.total < 1 then
+		return false
+	end
+	if Demonsurge.known and Metamorphosis.active then
+		return false
+	end
+	return Ability.Usable(self, ...)
+end
+
+function SpiritBurst:Usable(...)
+	if SoulFragments.total < 1 then
+		return false
+	end
+	return Metamorphosis.active and Ability.Usable(self, ...)
+end
+
+function FelDevastation:Cooldown()
+	if DemonicIntensity.known and Metamorphosis:Full() then
+		return max(Metamorphosis.remains, Ability.Cooldown(self))
+	end
+	return Ability.Cooldown(self)
+end
+
+function FelDevastation:CastSuccess(...)
+	if Demonic.known and Demonsurge.known then
+		Demonsurge:Reset()
+	end
+	Ability.CastSuccess(self, ...)
+end
+EyeBeam.CastSuccess = FelDevastation.CastSuccess
+
+function FelDesolation:Usable(...)
+	return Metamorphosis:Full() and Ability.Usable(self, ...)
+end
+
+function ImmolationAura:Usable(...)
+	if DemonicIntensity.known and Metamorphosis:Full() then
+		return false
+	end
+	return Ability.Usable(self, ...)
+end
+
+function ConsumingFire:Usable(...)
+	return Metamorphosis:Full() and Ability.Usable(self, ...)
+end
+
+function SigilOfFlame:Usable(...)
+	if DemonicIntensity.known and Metamorphosis:Full() then
+		return false
+	end
+	return Ability.Usable(self, ...)
+end
+
+function SigilOfDoom:Usable(...)
+	return Metamorphosis:Full() and Ability.Usable(self, ...)
+end
 
 -- End Ability Modifications
 
@@ -2073,7 +2218,7 @@ actions+=/fel_rush,if=movement.distance>15|(buff.out_of_range.up&!talent.momentu
 actions+=/vengeful_retreat,if=!talent.initiative&movement.distance>15
 actions+=/throw_glaive,if=(talent.demon_blades|buff.out_of_range.up)&!debuff.essence_break.up&buff.out_of_range.down
 ]]
-	self.use_cds = Opt.cooldown and (Target.boss or Target.player or (not Opt.boss_only and Target.timeToDie > Opt.cd_ttd) or Player.meta_active)
+	self.use_cds = Opt.cooldown and (Target.boss or Target.player or (not Opt.boss_only and Target.timeToDie > Opt.cd_ttd) or Metamorphosis.active)
 	self.blade_dance = FirstBlood.known or TrailOfRuin.known or (ChaosTheory.known and ChaosTheory:Down()) or Player.enemies > 1
 	self.pooling_for_blade_dance = self.blade_dance and Player.fury.current < (75 - (DemonBlades.known and 20 or 0)) and BladeDance:Ready(Player.gcd)
 	self.pooling_for_eye_beam = Demonic.known and not BlindFury.known and EyeBeam:Ready(Player.gcd * 3) and Player.fury.deficit > 30
@@ -2093,12 +2238,12 @@ actions+=/throw_glaive,if=(talent.demon_blades|buff.out_of_range.up)&!debuff.ess
 	) then
 		UseCooldown(FelRush)
 	end
-	if TheHunt:Usable() and Player:TimeInCombat() < 10 and (not Inertia.known or (Player.meta_active and not self.in_essence_break)) then
+	if TheHunt:Usable() and Player:TimeInCombat() < 10 and (not Inertia.known or (Metamorphosis.active and not self.in_essence_break)) then
 		UseCooldown(TheHunt)
 	end
 	if ImmolationAura:Usable() and Inertia.known and (
-		((EyeBeam:Ready(Player.gcd * 2) or Player.meta_active) and (not EssenceBreak.known or EssenceBreak:Ready(Player.gcd * 3)) and UnboundChaos.known and Inertia:Down() and not self.in_essence_break) or
-		(UnboundChaos:Down() and (not EssenceBreak.known or EssenceBreak:Ready(ImmolationAura:FullRechargeTime())) and not self.in_essence_break and (not Player.meta_active or Player.meta_remains > 6) and not BladeDance:Ready() and (Player.fury.current < 75 or BladeDance:Ready(Player.gcd * 2)))
+		((EyeBeam:Ready(Player.gcd * 2) or Metamorphosis.active) and (not EssenceBreak.known or EssenceBreak:Ready(Player.gcd * 3)) and UnboundChaos.known and Inertia:Down() and not self.in_essence_break) or
+		(UnboundChaos:Down() and (not EssenceBreak.known or EssenceBreak:Ready(ImmolationAura:FullRechargeTime())) and not self.in_essence_break and (not Metamorphosis.active or Metamorphosis.remains > 6) and not BladeDance:Ready() and (Player.fury.current < 75 or BladeDance:Ready(Player.gcd * 2)))
 	) then
 		return ImmolationAura
 	end
@@ -2106,7 +2251,7 @@ actions+=/throw_glaive,if=(talent.demon_blades|buff.out_of_range.up)&!debuff.ess
 		(UnboundChaos:Remains() < (Player.gcd * 2) or Target.timeToDie < (Player.gcd * 2)) or
 		(Inertia.known and Inertia:Down() and (
 			((EyeBeam:Cooldown() + 3) > UnboundChaos:Remains() and (not BladeDance:Ready() or EssenceBreak:Ready())) or
-			(Player.meta_active or not EssenceBreak:Ready(10))
+			(Metamorphosis.active or not EssenceBreak:Ready(10))
 		))
 	) then
 		UseCooldown(FelRush)
@@ -2114,7 +2259,7 @@ actions+=/throw_glaive,if=(talent.demon_blades|buff.out_of_range.up)&!debuff.ess
 	if self.use_cds then
 		self:cooldown()
 	end
-	if Player.meta_active and Player.meta_remains < Player.gcd and Player.enemies < 3 then
+	if Metamorphosis.active and Metamorphosis.remains < Player.gcd and Player.enemies < 3 then
 		local apl = self:meta_end()
 		if apl then return apl end
 	end
@@ -2128,8 +2273,8 @@ actions+=/pick_up_fragment,mode=nearest,type=lesser,if=fury.deficit>=45&(!cooldo
 	if VengefulRetreat:Usable() and (
 		(Inertia.known and EyeBeam:Ready(0.3) and EssenceBreak:Ready(Player.gcd * 2) and Player:TimeInCombat() > 5 and Player.fury.current >= 30) or
 		(Initiative.known and EssenceBreak.known and Player:TimeInCombat() > 1 and (
-				((not EssenceBreak:Ready(15) or (EssenceBreak:Ready(Player.gcd) and (not Demonic.known or Player.meta_active or not EyeBeam:Ready(15 + (CycleOfHatred.known and 10 or 0))))) and (not Initiative.known or Initiative:Remains() < Player.gcd or Player:TimeInCombat() > 4)) or
-				((not EssenceBreak:Ready(15) or (EssenceBreak:Ready(Player.gcd * 2) and (Initiative:Remains() < Player.gcd and not self.holding_meta and EyeBeam:Ready(Player.gcd) and Player.fury.current > 30)) or not Demonic.known or Player.meta_active or not EyeBeam:Ready(15 + (CycleOfHatred.known and 10 or 0))) and (UnboundChaos:Down() or Inertia:Up()))
+				((not EssenceBreak:Ready(15) or (EssenceBreak:Ready(Player.gcd) and (not Demonic.known or Metamorphosis.active or not EyeBeam:Ready(15 + (CycleOfHatred.known and 10 or 0))))) and (not Initiative.known or Initiative:Remains() < Player.gcd or Player:TimeInCombat() > 4)) or
+				((not EssenceBreak:Ready(15) or (EssenceBreak:Ready(Player.gcd * 2) and (Initiative:Remains() < Player.gcd and not self.holding_meta and EyeBeam:Ready(Player.gcd) and Player.fury.current > 30)) or not Demonic.known or Metamorphosis.active or not EyeBeam:Ready(15 + (CycleOfHatred.known and 10 or 0))) and (UnboundChaos:Down() or Inertia:Up()))
 		)) or
 		(Initiative.known and not EssenceBreak.known and Player:TimeInCombat() > 1 and Initiative:Down())
 	) then
@@ -2137,13 +2282,13 @@ actions+=/pick_up_fragment,mode=nearest,type=lesser,if=fury.deficit>=45&(!cooldo
 	end
 	if FelRush:Usable() and not self.in_essence_break and not BladeDance:Ready() and (
 		(Momentum.known and Momentum:Remains() < (Player.gcd * 2) and EyeBeam:Ready(Player.gcd)) or
-		(Inertia.known and Inertia:Down() and UnboundChaos:Up() and (Player.meta_active or (not EyeBeam:Ready(ImmolationAura:Cooldown()) and not EyeBeam:Ready(4))))
+		(Inertia.known and Inertia:Down() and UnboundChaos:Up() and (Metamorphosis.active or (not EyeBeam:Ready(ImmolationAura:Cooldown()) and not EyeBeam:Ready(4))))
 	) then
 		UseCooldown(FelRush)
 	end
 	if self.use_cds and EssenceBreak:Usable() and (
 		(Target.boss and Target.timeToDie < 6) or
-		((Player.meta_remains > (Player.gcd * 3) or not EyeBeam:Ready(10)) and (not TacticalRetreat.known or TacticalRetreat:Up() or Player:TimeInCombat() < 10) and BladeDance:Ready(Player.gcd * 3.1))
+		((Metamorphosis.remains > (Player.gcd * 3) or not EyeBeam:Ready(10)) and (not TacticalRetreat.known or TacticalRetreat:Up() or Player:TimeInCombat() < 10) and BladeDance:Ready(Player.gcd * 3.1))
 	) then
 		UseCooldown(EssenceBreak)
 	end
@@ -2153,7 +2298,7 @@ actions+=/pick_up_fragment,mode=nearest,type=lesser,if=fury.deficit>=45&(!cooldo
 	if self.use_cds and TheHunt:Usable() and not self.in_essence_break then
 		UseCooldown(TheHunt)
 	end
-	if self.use_cds and FelBarrage:Usable() and Player.fury.deficit < 20 and not Player.meta_active then
+	if self.use_cds and FelBarrage:Usable() and Player.fury.deficit < 20 and not Metamorphosis.active then
 		UseCooldown(FelBarrage)
 	end
 	if GlaiveTempest:Usable() and (not self.in_essence_break or Player.enemies > 1) and not self.in_fel_barrage then
@@ -2162,13 +2307,13 @@ actions+=/pick_up_fragment,mode=nearest,type=lesser,if=fury.deficit>=45&(!cooldo
 	if Annihilation:Usable() and InnerDemon:Up() and EyeBeam:Ready(Player.gcd) and not self.in_fel_barrage then
 		return Annihilation
 	end
-	if FelRush:Usable() and Momentum.known and EyeBeam:Ready(Player.gcd) and Momentum:Remains() < 5 and not Player.meta_active then
+	if FelRush:Usable() and Momentum.known and EyeBeam:Ready(Player.gcd) and Momentum:Remains() < 5 and not Metamorphosis.active then
 		UseCooldown(FelRush)
 	end
 	if self.use_cds and EyeBeam:Usable() and (
 		Player.enemies > 1 or
 		(Target.boss and Target.timeToDie < 15) or
-		(not self.in_essence_break and InnerDemon:Down() and (not Metamorphosis:Ready(30 - (CycleOfHatred.known and 15 or 0)) or (Metamorphosis:Ready(Player.gcd * 2) and (not EssenceBreak.known or EssenceBreak:Ready(Player.gcd * 1.5)))) and (not Player.meta_active or Player.meta_remains > Player.gcd or not RestlessHunter.known) and (CycleOfHatred.known or not Initiative.known or not VengefulRetreat:Ready(5) or Player:TimeInCombat() < 10))
+		(not self.in_essence_break and InnerDemon:Down() and (not Metamorphosis:Ready(30 - (CycleOfHatred.known and 15 or 0)) or (Metamorphosis:Ready(Player.gcd * 2) and (not EssenceBreak.known or EssenceBreak:Ready(Player.gcd * 1.5)))) and (not Metamorphosis.active or Metamorphosis.remains > Player.gcd or not RestlessHunter.known) and (CycleOfHatred.known or not Initiative.known or not VengefulRetreat:Ready(5) or Player:TimeInCombat() < 10))
 	) then
 		UseCooldown(EyeBeam)
 	end
@@ -2255,7 +2400,7 @@ actions.cooldown+=/use_items,slots=trinket2,if=(variable.trinket_sync_slot=2&(bu
 	if SigilOfSpite:Usable() and (not EssenceBreak.known or not self.in_essence_break) then
 		return UseCooldown(SigilOfSpite)
 	end
-	if Opt.trinket and (Player.meta_active or not MetamorphosisV:Ready(20) or (Target.boss and Target.timeToDie < 20)) and (not Initiative.known or Initiative:Up()) then
+	if Opt.trinket and (Metamorphosis.active or not Metamorphosis:Ready(20) or (Target.boss and Target.timeToDie < 20)) and (not Initiative.known or Initiative:Up()) then
 		if Trinket1:Usable() then
 			return UseCooldown(Trinket1)
 		elseif Trinket2:Usable() then
@@ -2302,6 +2447,9 @@ actions.precombat+=/snapshot_stats
 actions.precombat+=/sigil_of_flame
 actions.precombat+=/immolation_aura
 ]]
+		if SigilOfDoom:Usable() and not SigilOfDoom:Placed() then
+			return SigilOfDoom
+		end
 		if SigilOfFlame:Usable() and not SigilOfFlame:Placed() then
 			return SigilOfFlame
 		end
@@ -2329,7 +2477,14 @@ actions+=/run_action_list,name=big_aoe,if=active_enemies>=6
 	self.soul_cleave_condition = not SpiritBomb.known or not (SoulFragments.incoming > 1 or SigilOfSpite:Placed())
 	self:defensives()
 	self:trinkets()
+	if ViolentTransformation.known and Metamorphosis:Usable() and not Metamorphosis.active and not FelDevastation:Ready(8) and SigilOfFlame:ChargesFractional() < 0.8 then
+		UseCooldown(Metamorphosis)
+	end
 	local apl
+	if Demonsurge.known and Metamorphosis.active then
+		apl = self:demonsurge()
+		if apl then return apl end
+	end
 	if FieryDemise.known and FieryBrand:Ticking() > 0 then
 		apl = self:fiery_demise()
 		if apl then return apl end
@@ -2345,14 +2500,47 @@ actions+=/run_action_list,name=big_aoe,if=active_enemies>=6
 end
 
 APL[SPEC.VENGEANCE].defensives = function(self)
-	if DemonSpikes:Usable() and DemonSpikes:Down() and Player:UnderAttack() and (DemonSpikes:Charges() == DemonSpikes:MaxCharges() or (not Player.meta_active and (not CalcifiedSpikes.known or CalcifiedSpikes:Remains() < 8))) then
+	if DemonSpikes:Usable() and DemonSpikes:Down() and Player:UnderAttack() and (DemonSpikes:Charges() == DemonSpikes:MaxCharges() or (not Metamorphosis.active and (not CalcifiedSpikes.known or CalcifiedSpikes:Remains() < 8))) then
 		return UseExtra(DemonSpikes)
 	end
 	if InfernalStrike:Usable() and InfernalStrike:ChargesFractional() >= 1.5 then
 		return UseExtra(InfernalStrike)
 	end
-	if MetamorphosisV:Usable() and not Player.meta_active and (not Demonic.known or not FelDevastation:Ready()) and (Player.health.pct <= 60 or (DemonSpikes:Down() and not DemonSpikes:Ready())) then
-		return UseExtra(MetamorphosisV)
+	if Metamorphosis:Usable() and not Metamorphosis.active and (not Demonic.known or not FelDevastation:Ready()) and (Player.health.pct <= 60 or (DemonSpikes:Down() and not DemonSpikes:Ready())) then
+		return UseExtra(Metamorphosis)
+	end
+end
+
+APL[SPEC.VENGEANCE].demonsurge = function(self)
+--[[
+
+]]
+	if FelDesolation:Usable() then
+		UseCooldown(FelDesolation)
+	end
+	if SpiritBurst:Usable() and Demonsurge.up[SpiritBurst] and (
+		SoulFragments.total >= 4 or
+		Metamorphosis.remains < (Player.gcd * 2)
+	) then
+		return SpiritBurst
+	end
+	if SoulSunder:Usable() and Demonsurge.up[SoulSunder] and (
+		Metamorphosis.remains < (Player.gcd * 2) or
+		(Metamorphosis.remains < (Player.gcd * 5) and (not SpiritBurst.known or not Demonsurge.up[SpiritBurst] or SoulFragments.total <= 0))
+	) then
+		return SoulSunder
+	end
+	if Fracture:Usable() and Metamorphosis.remains < (Player.gcd * 5) and (
+		(SpiritBurst.known and Demonsurge.up[SpiritBurst]) or
+		(SoulSunder.known and Demonsurge.up[SoulSunder] and Player.fury.current < SoulSunder:Cost())
+	) then
+		return Fracture
+	end
+	if Shear:Usable() and Metamorphosis.remains < (Player.gcd * 5) and (
+		(SpiritBurst.known and Demonsurge.up[SpiritBurst]) or
+		(SoulSunder.known and Demonsurge.up[SoulSunder] and Player.fury.current < SoulSunder:Cost())
+	) then
+		return Shear
 	end
 end
 
@@ -2369,7 +2557,10 @@ actions.big_aoe+=/shear
 actions.big_aoe+=/soul_cleave,if=soul_fragments<1
 actions.big_aoe+=/call_action_list,name=filler
 ]]
-	if FelDevastation:Usable() and Player.meta_remains < 8 and (CollectiveAnguish.known or (StokeTheFlames.known and BurningBlood.known)) then
+	if FelDesolation:Usable() and Metamorphosis.remains < 8 then
+		UseCooldown(FelDesolation)
+	end
+	if FelDevastation:Usable() and Metamorphosis.remains < 8 and (CollectiveAnguish.known or (StokeTheFlames.known and BurningBlood.known)) then
 		UseCooldown(FelDevastation)
 	end
 	if TheHunt:Usable() then
@@ -2378,20 +2569,28 @@ actions.big_aoe+=/call_action_list,name=filler
 	if SigilOfSpite:Usable() and not SigilOfSpite:Placed() and SoulFragments.total <= 3 then
 		UseCooldown(SigilOfSpite)
 	end
-	if FelDevastation:Usable() and Player.meta_remains < 8 then
+	if FelDevastation:Usable() and Metamorphosis.remains < 8 then
 		UseCooldown(FelDevastation)
 	end
 	if SoulCarver:Usable() then
 		UseCooldown(SoulCarver)
 	end
-	if SpiritBomb:Usable() and SoulFragments.total >= 4 then
-		return SpiritBomb
+	if SoulFragments.total >= 4 then
+		if SpiritBurst:Usable() then
+			return SpiritBurst
+		end
+		if SpiritBomb:Usable() then
+			return SpiritBomb
+		end
 	end
 	if Fracture:Usable() then
 		return Fracture
 	end
 	if Shear:Usable() then
 		return Shear
+	end
+	if SoulSunder:Usable() and SoulFragments.total < 1 and self.soul_cleave_condition then
+		return SoulSunder
 	end
 	if SoulCleave:Usable() and SoulFragments.total < 1 and self.soul_cleave_condition then
 		return SoulCleave
@@ -2413,11 +2612,24 @@ actions.fiery_demise+=/the_hunt
 actions.fiery_demise+=/sigil_of_spite
 actions.fiery_demise+=/soul_cleave,if=fury.deficit<=30&!variable.dont_spend_fury
 ]]
+	if Fallout.known and SpiritBurst:Usable() and SoulFragments.total >= 3 and Player.enemies >= 3 and ImmolationAura:Ready(Player.gcd) then
+		return SpiritBurst
+	end
 	if Fallout.known and SpiritBomb:Usable() and SoulFragments.total >= 3 and Player.enemies >= 3 and ImmolationAura:Ready(Player.gcd) then
 		return SpiritBomb
 	end
+	if ConsumingFire:Usable() then
+		return ConsumingFire
+	end
 	if ImmolationAura:Usable() then
 		return ImmolationAura
+	end
+	if SigilOfDoom:Usable() and not SigilOfDoom:Placed() and (
+		SigilOfDoom:ChargesFractional() >= 1.8 or
+		SigilOfDoom.dot:Refreshable() or
+		(AscendingFlame.known and SigilOfDoom:ChargesFractional() >= 1.4 and Player.enemies >= 3)
+	) then
+		return SigilOfDoom
 	end
 	if SigilOfFlame:Usable() and not SigilOfFlame:Placed() and (
 		SigilOfFlame:ChargesFractional() >= 1.8 or
@@ -2429,11 +2641,21 @@ actions.fiery_demise+=/soul_cleave,if=fury.deficit<=30&!variable.dont_spend_fury
 	if Felblade:Usable() and Player.fury.current < 50 and FelDevastation:Ready(Player.gcd * 2) then
 		return Felblade
 	end
-	if FelDevastation:Usable() and Player.meta_remains < 8 then
+	if FelDesolation:Usable() then
+		UseCooldown(FelDesolation)
+	end
+	if FelDevastation:Usable() and Metamorphosis.remains < 8 then
 		UseCooldown(FelDevastation)
 	end
 	if SoulCarver:Usable() then
 		UseCooldown(SoulCarver)
+	end
+	if SpiritBurst:Usable() and (
+		(Player.enemies <= 1 and SoulFragments.total >= 5) or
+		((between(Player.enemies, 2, 5) or (FieryDemise.known and FieryBrand:Ticking() > 0)) and SoulFragments.total >= 4) or
+		(Player.enemies >= 6 and SoulFragments.total >= 3)
+	) then
+		return SpiritBurst
 	end
 	if SpiritBomb:Usable() and (
 		(Player.enemies <= 1 and SoulFragments.total >= 5) or
@@ -2447,6 +2669,9 @@ actions.fiery_demise+=/soul_cleave,if=fury.deficit<=30&!variable.dont_spend_fury
 	end
 	if SigilOfSpite:Usable() and not SigilOfSpite:Placed() and SoulFragments.total <= 3 then
 		UseCooldown(SigilOfSpite)
+	end
+	if SoulSunder:Usable() and Player.fury.deficit <= 30 and not self.dont_spend_fury and self.soul_cleave_condition then
+		return SoulSunder
 	end
 	if SoulCleave:Usable() and Player.fury.deficit <= 30 and not self.dont_spend_fury and self.soul_cleave_condition then
 		return SoulCleave
@@ -2498,6 +2723,13 @@ actions.maintenance+=/soul_cleave,if=fury.deficit<30&soul_fragments<=3&!variable
 	) then
 		UseCooldown(FieryBrand)
 	end
+	if SigilOfDoom:Usable() and not SigilOfDoom:Placed() and (
+		SigilOfDoom:ChargesFractional() >= 1.8 or
+		SigilOfDoom.dot:Remains() < 1 or
+		(AscendingFlame.known and SigilOfDoom:ChargesFractional() >= 1.4 and Player.enemies >= 3 and (not FieryDemise.known or not FieryBrand:Ready(4)))
+	) then
+		return SigilOfDoom
+	end
 	if SigilOfFlame:Usable() and not SigilOfFlame:Placed() and (
 		SigilOfFlame:ChargesFractional() >= 1.8 or
 		SigilOfFlame.dot:Remains() < 1 or
@@ -2505,16 +2737,25 @@ actions.maintenance+=/soul_cleave,if=fury.deficit<30&soul_fragments<=3&!variable
 	) then
 		return SigilOfFlame
 	end
+	if SpiritBurst:Usable() and (
+		SoulFragments.total >= 5 or
+		(Fallout.known and SoulFragments.total >= 3 and Player.enemies >= 3 and ImmolationAura:Ready(Player.gcd))
+	) then
+		return SpiritBurst
+	end
 	if SpiritBomb:Usable() and (
 		SoulFragments.total >= 5 or
 		(Fallout.known and SoulFragments.total >= 3 and Player.enemies >= 3 and ImmolationAura:Ready(Player.gcd))
 	) then
 		return SpiritBomb
 	end
-	if ImmolationAura:Usable() and (not Fallout.known or SpiritBomb:Previous() or Player.enemies <= 3 or SoulFragments.total <= 3) then
+	if ConsumingFire:Usable() and (not Fallout.known or SpiritBomb:Previous() or SpiritBurst:Previous() or Player.enemies <= 3 or SoulFragments.total <= 3) then
+		return ConsumingFire
+	end
+	if ImmolationAura:Usable() and (not Fallout.known or SpiritBomb:Previous() or SpiritBurst:Previous() or Player.enemies <= 3 or SoulFragments.total <= 3) then
 		return ImmolationAura
 	end
-	if BulkExtraction:Usable() and SpiritBomb:Previous() then
+	if BulkExtraction:Usable() and (SpiritBomb:Previous() or SpiritBurst:Previous()) then
 		UseCooldown(BulkExtraction)
 	end
 	if Felblade:Usable() and Player.fury.deficit >= 40 then
@@ -2526,11 +2767,20 @@ actions.maintenance+=/soul_cleave,if=fury.deficit<30&soul_fragments<=3&!variable
 	if Shear:Usable() and Player.fury.current < 50 and FelDevastation:Ready(Player.gcd * 2) then
 		return Shear
 	end
+	if SpiritBurst:Usable() and Player.fury.deficit < 30 and not self.dont_spend_fury and (
+		(Player.enemies >= 2 and SoulFragments.total >= 5) or
+		(Player.enemies >= 6 and SoulFragments.total >= 4)
+	) then
+		return SpiritBurst
+	end
 	if SpiritBomb:Usable() and Player.fury.deficit < 30 and not self.dont_spend_fury and (
 		(Player.enemies >= 2 and SoulFragments.total >= 5) or
 		(Player.enemies >= 6 and SoulFragments.total >= 4)
 	) then
 		return SpiritBomb
+	end
+	if SoulSunder:Usable() and Player.fury.deficit < 30 and SoulFragments.total <= 3 and not self.dont_spend_fury and self.soul_cleave_condition then
+		return SoulSunder
 	end
 	if SoulCleave:Usable() and Player.fury.deficit < 30 and SoulFragments.total <= 3 and not self.dont_spend_fury and self.soul_cleave_condition then
 		return SoulCleave
@@ -2556,17 +2806,25 @@ actions.single_target+=/call_action_list,name=filler
 	if SoulCarver:Usable() then
 		UseCooldown(SoulCarver)
 	end
-	if FelDevastation:Usable() and Player.meta_remains < 8 and (CollectiveAnguish.known or (StokeTheFlames.known and BurningBlood.known)) then
+	if FelDesolation:Usable() and Metamorphosis.remains < 8 then
+		UseCooldown(FelDesolation)
+	end
+	if FelDevastation:Usable() and Metamorphosis.remains < 8 and (CollectiveAnguish.known or (StokeTheFlames.known and BurningBlood.known)) then
 		UseCooldown(FelDevastation)
 	end
 	if SigilOfSpite:Usable() and not SigilOfSpite:Placed() and SoulFragments.total <= 3 then
 		UseCooldown(SigilOfSpite)
 	end
-	if FelDevastation:Usable() and Player.meta_remains < 8 then
+	if FelDevastation:Usable() and Metamorphosis.remains < 8 then
 		UseCooldown(FelDevastation)
 	end
-	if FocusedCleave.known and SoulCleave:Usable() and not self.dont_spend_fury then
-		return SoulCleave
+	if FocusedCleave.known and not self.dont_spend_fury then
+		if SoulSunder:Usable() then
+			return SoulSunder
+		end
+		if SoulCleave:Usable() then
+			return SoulCleave
+		end
 	end
 	if Fracture:Usable() then
 		return Fracture
@@ -2574,8 +2832,13 @@ actions.single_target+=/call_action_list,name=filler
 	if Shear:Usable() then
 		return Shear
 	end
-	if SoulCleave:Usable() and not self.dont_spend_fury then
-		return SoulCleave
+	if not self.dont_spend_fury then
+		if SoulSunder:Usable() then
+			return SoulSunder
+		end
+		if SoulCleave:Usable() then
+			return SoulCleave
+		end
 	end
 	return self:filler()
 end
@@ -2597,17 +2860,26 @@ actions.small_aoe+=/call_action_list,name=filler
 	if TheHunt:Usable() then
 		UseCooldown(TheHunt)
 	end
-	if FelDevastation:Usable() and Player.meta_remains < 8 and (CollectiveAnguish.known or (StokeTheFlames.known and BurningBlood.known)) then
+	if FelDesolation:Usable() and Metamorphosis.remains < 8 then
+		UseCooldown(FelDesolation)
+	end
+	if FelDevastation:Usable() and Metamorphosis.remains < 8 and (CollectiveAnguish.known or (StokeTheFlames.known and BurningBlood.known)) then
 		UseCooldown(FelDevastation)
 	end
 	if SigilOfSpite:Usable() and not SigilOfSpite:Placed() and SoulFragments.total <= 3 then
 		UseCooldown(SigilOfSpite)
 	end
-	if FelDevastation:Usable() and Player.meta_remains < 8 then
+	if FelDevastation:Usable() and Metamorphosis.remains < 8 then
 		UseCooldown(FelDevastation)
 	end
 	if SoulCarver:Usable() then
 		UseCooldown(SoulCarver)
+	end
+	if SpiritBurst:Usable() and (
+		SoulFragments.total >= 5 or
+		((FieryDemise.known and FieryBrand:Ticking() > 0) and SoulFragments.total >= 4)
+	) then
+		return SpiritBurst
 	end
 	if SpiritBomb:Usable() and (
 		SoulFragments.total >= 5 or
@@ -2615,8 +2887,13 @@ actions.small_aoe+=/call_action_list,name=filler
 	) then
 		return SpiritBomb
 	end
-	if FocusedCleave.known and SoulCleave:Usable() and SoulFragments.total <= 2 and self.soul_cleave_condition then
-		return SoulCleave
+	if FocusedCleave.known and self.soul_cleave_condition and SoulFragments.total <= 2 then
+		if SoulSunder:Usable() then
+			return SoulSunder
+		end
+		if SoulCleave:Usable() then
+			return SoulCleave
+		end
 	end
 	if Fracture:Usable() then
 		return Fracture
@@ -2624,8 +2901,13 @@ actions.small_aoe+=/call_action_list,name=filler
 	if Shear:Usable() then
 		return Shear
 	end
-	if SoulCleave:Usable() and SoulFragments.total <= 2 then
-		return SoulCleave
+	if SoulFragments.total <= 2 then
+		if SoulSunder:Usable() then
+			return SoulSunder
+		end
+		if SoulCleave:Usable() then
+			return SoulCleave
+		end
 	end
 	return self:filler()
 end
@@ -2638,7 +2920,7 @@ actions.trinkets+=/use_item,use_off_gcd=1,slot=main_hand,if=(variable.trinket_1_
 actions.trinkets+=/use_item,use_off_gcd=1,slot=trinket1,if=variable.trinket_1_buffs&(buff.metamorphosis.up|cooldown.metamorphosis.remains>20)&(variable.trinket_2_exclude|trinket.2.cooldown.remains|!trinket.2.has_cooldown|variable.trinket_2_buffs)
 actions.trinkets+=/use_item,use_off_gcd=1,slot=trinket2,if=variable.trinket_2_buffs&(buff.metamorphosis.up|cooldown.metamorphosis.remains>20)&(variable.trinket_1_exclude|trinket.1.cooldown.remains|!trinket.1.has_cooldown|variable.trinket_1_buffs)
 ]]
-	if Opt.trinket and (Player.meta_active or not MetamorphosisV:Ready(20)) then
+	if Opt.trinket and (Metamorphosis.active or not Metamorphosis:Ready(20)) then
 		if Trinket1:Usable() then
 			return UseCooldown(Trinket1)
 		elseif Trinket2:Usable() then
@@ -2945,8 +3227,8 @@ function UI:UpdateDisplay()
 			text_cd = format('%.1f', react)
 		end
 	end
-	if Player.meta_active then
-		text_tr = format('%.1fs', Player.meta_remains)
+	if Metamorphosis.active then
+		text_tr = format('%.1fs', Metamorphosis.remains)
 	end
 	if SoulFragments.known and SoulFragments.current + SoulFragments.incoming > 0 then
 		text_tl = SoulFragments.current
@@ -3167,6 +3449,9 @@ CombatEvent.SPELL = function(event, srcGUID, dstGUID, spellId, spellName, spellS
 	if dstGUID == Player.guid then
 		if event == 'SPELL_AURA_APPLIED' or event == 'SPELL_AURA_REFRESH' then
 			ability.last_gained = Player.time
+		end
+		if ability == Metamorphosis and event == 'SPELL_AURA_REMOVED' then
+			ability.full = false
 		end
 		return -- ignore buffs beyond here
 	end
