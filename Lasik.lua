@@ -2515,7 +2515,7 @@ APL[SPEC.VENGEANCE].demonsurge = function(self)
 --[[
 
 ]]
-	if FelDesolation:Usable() then
+	if FelDesolation:Usable() and Metamorphosis.remains < (Player.gcd * 5) then
 		UseCooldown(FelDesolation)
 	end
 	if SpiritBurst:Usable() and Demonsurge.up[SpiritBurst] and (
@@ -2557,7 +2557,7 @@ actions.big_aoe+=/shear
 actions.big_aoe+=/soul_cleave,if=soul_fragments<1
 actions.big_aoe+=/call_action_list,name=filler
 ]]
-	if FelDesolation:Usable() and Metamorphosis.remains < 8 then
+	if FelDesolation:Usable() and Metamorphosis.remains < 4 then
 		UseCooldown(FelDesolation)
 	end
 	if FelDevastation:Usable() and Metamorphosis.remains < 8 and (CollectiveAnguish.known or (StokeTheFlames.known and BurningBlood.known)) then
@@ -2574,6 +2574,9 @@ actions.big_aoe+=/call_action_list,name=filler
 	end
 	if SoulCarver:Usable() then
 		UseCooldown(SoulCarver)
+	end
+	if FelDesolation:Usable() then
+		UseCooldown(FelDesolation)
 	end
 	if SoulFragments.total >= 4 then
 		if SpiritBurst:Usable() then
@@ -2800,20 +2803,23 @@ actions.single_target+=/shear
 actions.single_target+=/soul_cleave,if=!variable.dont_spend_fury
 actions.single_target+=/call_action_list,name=filler
 ]]
+	if FelDesolation:Usable() and Metamorphosis.remains < 4 then
+		UseCooldown(FelDesolation)
+	end
 	if TheHunt:Usable() then
 		UseCooldown(TheHunt)
 	end
 	if SoulCarver:Usable() then
 		UseCooldown(SoulCarver)
 	end
-	if FelDesolation:Usable() and Metamorphosis.remains < 8 then
-		UseCooldown(FelDesolation)
-	end
 	if FelDevastation:Usable() and Metamorphosis.remains < 8 and (CollectiveAnguish.known or (StokeTheFlames.known and BurningBlood.known)) then
 		UseCooldown(FelDevastation)
 	end
 	if SigilOfSpite:Usable() and not SigilOfSpite:Placed() and SoulFragments.total <= 3 then
 		UseCooldown(SigilOfSpite)
+	end
+	if FelDesolation:Usable() then
+		UseCooldown(FelDesolation)
 	end
 	if FelDevastation:Usable() and Metamorphosis.remains < 8 then
 		UseCooldown(FelDevastation)
