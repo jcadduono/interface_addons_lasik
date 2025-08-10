@@ -3672,7 +3672,7 @@ end
 
 function Events:UNIT_MAXPOWER(unitId)
 	if unitId == 'player' then
-		Player.level = UnitLevel(unitId)
+		Player.level = UnitEffectiveLevel(unitId)
 		Player.fury.max = UnitPowerMax(unitId, 17)
 	end
 end
